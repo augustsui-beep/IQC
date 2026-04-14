@@ -39,7 +39,7 @@
         ];
 
         // Pareto 組件
-        const ParetoChart = ({ data }) => {
+        const ParetoChart = React.memo(({ data }) => {
             const chartData = useMemo(() => {
                 const sorted = [...data].sort((a, b) => b.defects - a.defects);
                 const total = sorted.reduce((sum, item) => sum + item.defects, 0);
@@ -49,7 +49,7 @@
                     acc += item.defects;
                     return {
                         ...item,
-                        cumulative: (acc / total) * 100,
+                        cumulative: parseFloat(((acc / total) * 100).toFixed(1)),
                         isTop: (prevAcc / total) * 100 < 80
                     };
                 });
@@ -76,9 +76,21 @@
                     </ResponsiveContainer>
                 </div>
             );
-        };
+        });
 
         function App() {
+            const summary = useMemo(() => {
+                const sorted = [...VENDOR_DATA].sort((a, b) => b.defects - a.defects);
+                const total = sorted.reduce((sum, item) => sum + item.defects, 0);
+                let acc = 0;
+                let topCount = 0;
+                for (const item of sorted) {
+                    if ((acc / total) * 100 < 80) topCount++;
+                    acc += item.defects;
+                }
+                return { total, topCount };
+            }, []);
+
             return (
                 <div className="min-h-screen p-4 md:p-8">
                     <header className="max-w-7xl mx-auto mb-8">
@@ -95,7 +107,7 @@
                         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-lg font-semibold text-slate-100 uppercase tracking-widest">Vendor Failures Pareto</h2>
-                                <span className="bg-blue-500/10 text-blue-400 text-xs px-2 py-1 rounded border border-blue-500/20">Real-time Data</span>
+                                <span className="bg-slate-500/10 text-slate-400 text-xs px-2 py-1 rounded border border-slate-500/20">Sample Data</span>
                             </div>
                             
                             <ParetoChart data={VENDOR_DATA} />
@@ -103,11 +115,11 @@
                             <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                                     <p className="text-slate-500 text-xs mb-1">主要改善對象 (80%)</p>
-                                    <p className="text-xl font-bold text-red-400">Top 5 Vendors</p>
+                                    <p className="text-xl font-bold text-red-400">Top {summary.topCount} Vendors</p>
                                 </div>
                                 <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                                     <p className="text-slate-500 text-xs mb-1">累計不良數</p>
-                                    <p className="text-xl font-bold text-amber-400">331 Units</p>
+                                    <p className="text-xl font-bold text-amber-400">{summary.total} Units</p>
                                 </div>
                                 <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                                     <p className="text-slate-500 text-xs mb-1">建議行動</p>
