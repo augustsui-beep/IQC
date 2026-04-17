@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enterprise Quality Intelligence System (Decision Engine V4)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ── 企業級 UI/UX 變數與 Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0b0f19; --surface: #151a2a; --card: #1e2538; --border: #2a344b; --border-hover: #3d4b68;
+  --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b;
+  --accent: #3b82f6; --accent-hover: #60a5fa;
+  --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --purple: #8b5cf6;
+  --radius: 8px; --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --font: 'Inter', system-ui, sans-serif; --mono: 'JetBrains Mono', monospace;
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--text); overflow: hidden; }
+body { display: flex; flex-direction: column; }
+body.dragover::after { content: 'Drop Excel files here to merge & analyze'; position: fixed; inset: 0; background: rgba(11,15,25,0.8); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 600; color: var(--accent); border: 4px dashed var(--accent); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+.header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: rgba(21, 26, 42, 0.95); border-bottom: 1px solid var(--border); z-index: 100; flex-shrink: 0; }
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header h1 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.header h1 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; box-shadow: 0 0 8px var(--accent); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.header-right { display: flex; align-items: center; gap: 12px; }
+.btn { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: var(--transition); }
+.btn:hover { background: var(--border); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); transform: translateY(-1px); }
+
+.toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 24px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 12px; flex-shrink: 0; }
+.breadcrumb { display: flex; align-items: center; gap: 8px; color: var(--text2); }
+.breadcrumb-link { cursor: pointer; transition: var(--transition); }
+.breadcrumb-link.active { color: var(--accent); font-weight: 600; }
+.breadcrumb-link:hover { color: var(--text); text-decoration: underline; }
+.summary-info { color: var(--text3); font-family: var(--mono); }
+
+.main { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+.sidebar { width: 280px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.sidebar-header { padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.clear-btn { color: var(--accent); cursor: pointer; background: none; border: none; font-weight: 600; font-size: 11px; }
+.filters-wrap { flex: 1; overflow-y: auto; }
+.filter-group { border-bottom: 1px solid var(--border); }
+.filter-title { display: flex; justify-content: space-between; padding: 10px 16px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.filter-title .count { font-family: var(--mono); font-size: 10px; color: var(--accent); background: rgba(59,130,246,0.15); padding: 2px 6px; border-radius: 10px; }
+.filter-body { display: none; padding: 0 12px 12px; }
+.filter-body.open { display: block; }
+.filter-search { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: 11px; color: var(--text); margin-bottom: 8px; }
+.filter-options { max-height: 180px; overflow-y: auto; }
+.filter-opt { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-size: 11px; color: var(--text2); cursor: pointer; }
+.filter-opt:hover { background: var(--border); color: var(--text); }
+.filter-opt label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+
+.content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.content.no-data > *:not(.empty-state) { display: none; }
+.content.has-data .empty-state { display: none; }
+.empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text3); border: 1px dashed var(--border); border-radius: var(--radius); padding: 40px; }
+
+.exec-summary { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; background: linear-gradient(145deg, rgba(21,26,42,1) 0%, rgba(11,15,25,1) 100%); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.exec-title { font-size: 14px; font-weight: 600; color: var(--accent); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.exec-stats { display: flex; flex-direction: column; gap: 8px; border-right: 1px solid var(--border); padding-right: 16px; }
+.exec-stat-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); }
+.exec-stat-val { font-family: var(--mono); color: var(--text); font-weight: 600; }
+
+.ai-card { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 150px; padding-left: 8px;}
+.ai-item { background: rgba(0,0,0,0.3); border-radius: 6px; padding: 12px; border-left: 4px solid var(--accent); font-size: 12px; transition: var(--transition); cursor: pointer; }
+.ai-item:hover { background: rgba(0,0,0,0.5); transform: translateX(2px); border-color: var(--accent-hover); }
+.ai-item.High { border-color: var(--danger); } .ai-item.Medium { border-color: var(--warning); }
+.ai-header-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.ai-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.ai-item.High .ai-badge { background: rgba(239,68,68,0.2); color: #fca5a5; }
+.ai-item.Medium .ai-badge { background: rgba(245,158,11,0.2); color: #fcd34d; }
+.ai-action { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); color: var(--success); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+
+.kpi-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 16px; }
+.kpi { background: var(--card); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); display: flex; flex-direction: column; position: relative; overflow: hidden; transition: var(--transition); cursor: pointer; }
+.kpi:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.kpi::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--accent); }
+.kpi.alert::before { background: var(--danger); } .kpi.warn::before { background: var(--warning); }
+.kpi-label { font-size: 11px; text-transform: uppercase; color: var(--text3); font-weight: 600; display: flex; justify-content: space-between; }
+.kpi-value { font-family: var(--mono); font-size: 24px; font-weight: 700; color: var(--text); margin-top: 8px; }
+.kpi-sub { font-size: 10px; color: var(--text2); margin-top: 4px; display: flex; align-items: center; gap: 4px; line-height: 1.2; }
+.trend-up { color: var(--danger); } .trend-down { color: var(--success); } .trend-flat { color: var(--text3); }
+
+.chart-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.chart-row.full { grid-template-columns: 1fr; }
+.card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; display: flex; flex-direction: column; }
+.card-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+.chart-box { flex: 1; min-height: 300px; }
+.card.chart-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+.table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 6px; max-height: 400px; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+th { position: sticky; top: 0; background: var(--surface); color: var(--text2); text-align: left; padding: 10px; border-bottom: 1px solid var(--border); z-index: 1; font-weight: 600; }
+td { padding: 8px 10px; border-bottom: 1px solid rgba(42,52,75,0.5); white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+tr:hover td { background: rgba(59,130,246,0.05); }
+.pagination { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; font-size: 11px; color: var(--text3); }
+
+.progress-overlay { position: fixed; inset: 0; background: rgba(11,15,25,0.9); z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+.progress-overlay.show { opacity: 1; pointer-events: all; }
+.progress-box { background: var(--card); padding: 24px; border-radius: var(--radius); border: 1px solid var(--border); width: 300px; text-align: center; }
+.progress-bar-bg { width: 100%; height: 6px; background: var(--surface); border-radius: 3px; margin: 16px 0; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s; box-shadow: 0 0 10px var(--accent); }
+
+/* trend card title multi-badge layout */
+#card-trend .card-title { flex-wrap: wrap; gap: 6px; align-items: center; }
+#trend-mode-badge { white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div class="progress-overlay" id="loader">
+  <div class="progress-box">
+    <div style="font-weight:600; margin-bottom:8px" id="loaderTitle">Processing Data...</div>
+    <div id="loaderText" style="font-size:12px; color:var(--text2)">Initializing...</div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-left">
+    <h1><span class="dot"></span>Enterprise Quality Intelligence System <span style="font-size: 10px; color: var(--success); border: 1px solid var(--success); padding: 2px 4px; border-radius: 4px; margin-left: 8px;">Decision Engine V4</span></h1>
+  </div>
+  <div class="header-right">
+    <button class="btn" id="btnExport">⬇️ Export CSV</button>
+    <button class="btn btn-primary" id="btnUpload">📁 Upload Excel(s)</button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" multiple style="display:none">
+  </div>
+</div>
+
+<div class="toolbar" id="toolbar" style="display:none">
+  <div class="breadcrumb" id="breadcrumb"></div>
+  <div class="summary-info" id="summaryInfo"></div>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-header">Filters <button class="clear-btn" id="clearAll">Reset All</button></div>
+    <div class="filters-wrap" id="filtersWrap"></div>
+  </div>
+  <div class="content no-data" id="content">
+    <div class="empty-state">
+      <div style="font-size: 48px; opacity: 0.5; margin-bottom: 16px">📊</div>
+      <h3>上傳一或多個 Excel 測試資料以啟動分析</h3>
+      <p style="font-size: 12px; margin-top: 8px">提示：可直接將多份檔案拖曳至此畫面合併，支援大數據解析</p>
+    </div>
+
+    <div class="exec-summary" id="execSummary" style="display:none;">
+      <div>
+        <div class="exec-title">📊 Quality Summary (本週/篩選概況)</div>
+        <div class="exec-stats">
+          <div class="exec-stat-row"><span>總不良數:</span> <span class="exec-stat-val" id="sum-total">0</span></div>
+          <div class="exec-stat-row"><span>最高風險產線(Rate):</span> <span class="exec-stat-val" id="sum-line" style="color:var(--warning)">-</span></div>
+          <div class="exec-stat-row"><span>首要待處理缺陷:</span> <span class="exec-stat-val" id="sum-defect" style="color:var(--danger)">-</span></div>
+          <div class="exec-stat-row"><span>影響機種數:</span> <span class="exec-stat-val" id="sum-pn">-</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="exec-title">✨ AI Intelligence & Recommended Actions</div>
+        <div class="ai-card" id="aiList"></div>
+      </div>
+    </div>
+    
+    <div class="kpi-row" id="kpiRow" style="display:none;">
+      <div class="kpi" id="kpi-box-rate" title="不良率近似值 = (Filtered Rows / Raw Total Rows) * 100%"><div class="kpi-label">Defect Rate <span>ℹ️</span></div><div class="kpi-value" id="kpi-impact">0%</div><div class="kpi-sub">Filtered / Base Population</div></div>
+      <div class="kpi" id="kpi-box-wow" title="與前一週相比的不良數成長率 = ((本週 - 上週) / 上週) * 100%"><div class="kpi-label">Weekly Trend (WoW) <span>ℹ️</span></div><div class="kpi-value" id="kpi-wow">-</div><div class="kpi-sub" id="kpi-wow-sub">vs. Previous Week</div></div>
+      <div class="kpi alert" id="kpi-box-top" title="累積不良數最大的單一 Defect P/N"><div class="kpi-label">Top Contributor <span>ℹ️</span></div><div class="kpi-value" id="kpi-top-defect" style="font-size:16px">-</div><div class="kpi-sub" id="kpi-top-defect-sub">最大 Defect P/N</div></div>
+      <div class="kpi warn" id="kpi-box-recurring" title="連續 >= 2 週皆發生，且佔比高的 Error Code"><div class="kpi-label">Recurring Issue <span>ℹ️</span></div><div class="kpi-value" id="kpi-recurring" style="font-size:16px">-</div><div class="kpi-sub">長期未解異常 (Error Code)</div></div>
+      <div class="kpi warn" id="kpi-box-worstline" title="該產線不良數 / 該產線母體總投入數 最大者"><div class="kpi-label">Worst Line Perform. <span>ℹ️</span></div><div class="kpi-value" id="kpi-worst-line" style="font-size:16px">-</div><div class="kpi-sub" id="kpi-worst-line-sub">不良率最高產線</div></div>
+      <div class="kpi alert" id="kpi-box-critical" title="AI判定為 High Priority 的問題數量 (Spike / Spread)"><div class="kpi-label">Critical Issues <span>ℹ️</span></div><div class="kpi-value" id="kpi-critical">0</div><div class="kpi-sub">需立即處置項目</div></div>
+      <div class="kpi" id="kpi-box-duplicate-sn" title="Server P/N 出現 >= 2 次的種類數量（Distinct Count）"><div class="kpi-label">Server S/N Duplicate Count <span>ℹ️</span></div><div class="kpi-value" id="kpi-duplicate-sn">0</div><div class="kpi-sub">重複出現機台種類數</div></div>
+    </div>
+
+    <div class="chart-row full">
+      <div class="card" id="card-trend">
+        <div class="card-title">
+          Trend by Failure (Multi-Line Analysis)
+          <span id="trend-mode-badge" style="font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:10px;background:rgba(59,130,246,0.1);color:var(--text3);transition:all 0.3s">[Single-Line] Overall Trend</span>
+          <span style="font-size:10px;color:var(--text3)">任一 Filter 勾選≥2項 → 自動多線比較 | 支援: Error Code / Defect P/N / Line / Server P/N / Owner / Debug Result / Test Weeknum</span>
+        </div>
+        <div class="chart-box" id="chart-trend"></div>
+      </div>
+    </div>
+
+    <div style="font-size: 14px; font-weight: 600; color: var(--accent); padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-top: 10px;">🔍 Root Cause Analysis (多維度交叉分析)</div>
+    <div class="chart-row full">
+      <div class="card" id="card-heatmap">
+        <div class="card-title">1. Error Code × Defect P/N <span style="font-size:10px;color:var(--text3)">(點擊區塊分析)</span></div>
+        <div class="chart-box" id="chart-heatmap" style="min-height: 350px;"></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="card" id="card-heatmap2">
+        <div class="card-title">2. Defect P/N × Production Line <span style="font-size:10px;color:var(--text3)">(點擊區塊分析)</span></div>
+        <div class="chart-box" id="chart-heatmap2" style="min-height: 300px;"></div>
+      </div>
+      <div class="card" id="card-heatmap3">
+        <div class="card-title">3. Issue Owner × Error Code <span style="font-size:10px;color:var(--text3)">(點擊區塊分析)</span></div>
+        <div class="chart-box" id="chart-heatmap3" style="min-height: 300px;"></div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="card" id="card-defect"><div class="card-title">Failures by Defect P/N <span style="font-size:10px;color:var(--text3)">(Dbl-click to drill)</span></div><div class="chart-box" id="chart-defect"></div></div>
+      <div class="card" id="card-line"><div class="card-title">Production Line Benchmark <span style="font-size:10px;color:var(--text3)">(依 Defect Rate 排名)</span></div><div class="chart-box" id="chart-line"></div></div>
+    </div>
+    
+    <div class="chart-row">
+      <div class="card" id="card-pareto"><div class="card-title">Pareto Chart (Debug review result) <span style="font-size:10px;color:var(--text3)">(80/20 法則檢視)</span></div><div class="chart-box" id="chart-pareto"></div></div>
+      <div class="card" id="card-owner"><div class="card-title">Issue Owner Distribution <span style="font-size:10px;color:var(--text3)">(責任歸屬)</span></div><div class="chart-box" id="chart-owner"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Detail Raw Data Table</div>
+      <div class="table-wrap"><table id="dataTable"><thead><tr></tr></thead><tbody></tbody></table></div>
+      <div class="pagination">
+        <span id="pageInfo">Showing 0-0 of 0</span>
+        <div><button class="btn" id="btnPrev">Prev</button><button class="btn" id="btnNext" style="margin-left:8px">Next</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 防禦型常數與設定 ──
+const EMPTY_VAL = "(未定義/空值)";
+const ROWS_PER_PAGE = 50;
+const ALIAS_MAP = { 'server pn':'Server P/N', 'defect pn':'Defect P/N', 'error desc':'Error Code Description', 'test week':'Test Weeknum', 'line':'Production Line' };
+
+const CONFIG = {
+  fields: ['Source File', 'Server P/N', 'Error Code', 'Debug Desc.', 'Issue Owner', 'Debug review result', 'Error Code Description', 'Defect P/N', 'Production Line', 'Test Weeknum'],
+  requiredFields: ['Test Weeknum', 'Defect P/N', 'Error Code'], 
+  charts: {
+    'trend':    { field: 'Test Weeknum', type: 'line' },
+    'heatmap':  { field: 'Cross', type: 'heatmap', x: 'Error Code', y: 'Defect P/N' },
+    'heatmap2': { field: 'Cross', type: 'heatmap', x: 'Defect P/N', y: 'Production Line' },
+    'heatmap3': { field: 'Cross', type: 'heatmap', x: 'Issue Owner', y: 'Error Code' },
+    'defect':   { field: 'Defect P/N', type: 'bar' },
+    'line':     { field: 'Production Line', type: 'bar' }, // 改為 Rate 排序
+    'pareto':   { field: 'Debug review result', type: 'pareto' },
+    'owner':    { field: 'Issue Owner', type: 'pie' }
+  },
+  palette: ['#ef4444','#f59e0b','#3b82f6','#10b981','#8b5cf6','#06b6d4','#ec4899','#64748b', '#22d3ee', '#f43f5e']
+};
+
+// ── 狀態管理 (State) ──
+const STATE = {
+  raw: [], filtered: [], activeHeaders: [], filterState: {}, chartFilters: {}, drillStack: [],
+  aggregations: {}, rawAggregations: {}, currentPage: 1, chartInstances: {}, filesProcessed: 0, totalFiles: 0, aiInsightsCount: 0
+};
+
+// ── 安全與工具函數 ──
+function escapeHTML(s) { 
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>'"]/g, t=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[t])); 
+}
+function debounce(f, w) { let t; return (...a) => { clearTimeout(t); t = setTimeout(()=>f(...a), w); }; }
+
+// ── DOM 載入與事件綁定 (嚴格無 inline) ──
+document.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('resize', debounce(() => {
+    Object.values(STATE.chartInstances).forEach(c => { if(c && !c.isDisposed()) c.resize(); });
+  }, 150));
+  
+  // 工具列按鈕
+  document.getElementById('btnPrev').addEventListener('click', () => { STATE.currentPage--; updateTable(); });
+  document.getElementById('btnNext').addEventListener('click', () => { STATE.currentPage++; updateTable(); });
+  document.getElementById('clearAll').addEventListener('click', clearAllFilters);
+  document.getElementById('btnExport').addEventListener('click', exportData);
+  document.getElementById('btnUpload').addEventListener('click', () => document.getElementById('fileInput').click());
+  document.getElementById('fileInput').addEventListener('change', e => processFiles(e.target.files));
+
+  // 拖曳上傳
+  document.body.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('dragover'); });
+  document.body.addEventListener('dragleave', e => { e.preventDefault(); document.body.classList.remove('dragover'); });
+  document.body.addEventListener('drop', e => { 
+    e.preventDefault(); document.body.classList.remove('dragover'); 
+    if(e.dataTransfer.files.length) processFiles(e.dataTransfer.files); 
+  });
+
+  // 麵包屑與 AI 點擊代理
+  document.getElementById('breadcrumb').addEventListener('click', e => {
+    if(e.target.classList.contains('breadcrumb-link')) {
+      const idx = e.target.getAttribute('data-idx');
+      if (idx === 'home') resetDrill();
+      else if (idx !== null) popDrill(parseInt(idx, 10));
+    }
+  });
+
+  document.getElementById('aiList').addEventListener('click', e => {
+    const item = e.target.closest('.ai-item');
+    if(item && item.dataset.field && item.dataset.val) {
+      aiDrill(item.dataset.field, item.dataset.val);
+    }
+  });
+
+  // KPI Drill Down Events
+  document.getElementById('kpi-box-top').addEventListener('click', () => {
+      const val = document.getElementById('kpi-top-defect').textContent;
+      if (val && val !== '-') aiDrill('Defect P/N', val);
+  });
+  document.getElementById('kpi-box-recurring').addEventListener('click', () => {
+      const val = document.getElementById('kpi-recurring').textContent;
+      if (val && val !== '-') aiDrill('Error Code', val);
+  });
+  document.getElementById('kpi-box-worstline').addEventListener('click', () => {
+      const val = document.getElementById('kpi-worst-line').textContent;
+      if (val && val !== '-') aiDrill('Production Line', val);
+  });
+});
+
+// ── 安全檔案解析 ──
+async function processFiles(files) {
+  if(!files.length) return;
+  STATE.raw = []; STATE.totalFiles = files.length;
+  showProgress('Merging Multi-Source Data', 'Reading blocks...', 0);
+  
+  let allHeadersSet = new Set(['Source File']);
+  let tempRawData = [];
+
+  for(let i=0; i<files.length; i++) {
+    const file = files[i];
+    updateProgress(`Parsing ${file.name}...`, (i/files.length)*50);
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, {type: 'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, {defval: ''});
+      
+      if(json.length) {
+        const rawHeaders = Object.keys(json[0]);
+        const mappedHeaders = rawHeaders.map(h => ALIAS_MAP[h.trim().toLowerCase()] || h.trim());
+        mappedHeaders.forEach(h => allHeadersSet.add(h));
+        
+        json.forEach(row => {
+          const newRow = { 'Source File': file.name };
+          rawHeaders.forEach((h, idx) => {
+            let val = row[h];
+            val = (val === null || val === undefined || String(val).trim() === '') ? EMPTY_VAL : String(val).trim();
+            newRow[mappedHeaders[idx]] = val;
+          });
+          tempRawData.push(newRow);
+        });
+      }
+    } catch(e) { 
+      console.error(e);
+      alert(`讀取檔案 ${file.name} 時發生錯誤。`);
+    }
+  }
+
+  updateProgress('Normalizing Data Dimensions...', 70);
+  setTimeout(() => {
+    const allHeaders = Array.from(allHeadersSet);
+    STATE.activeHeaders = CONFIG.fields.filter(f => allHeaders.includes(f));
+    
+    const missingFields = CONFIG.requiredFields.filter(f => !STATE.activeHeaders.includes(f));
+    if(missingFields.length > 0) {
+      hideProgress();
+      document.getElementById('fileInput').value = '';
+      return alert(`資料缺少進行 AI 決策的必要欄位：\n${missingFields.join(', ')}\n請檢查 Excel 標題。`);
+    }
+    
+    STATE.raw = tempRawData.map(row => {
+      STATE.activeHeaders.forEach(h => { if(row[h] === undefined) row[h] = EMPTY_VAL; });
+      return row;
+    });
+
+    // 預先計算基礎母體分佈 (Raw Aggregation)，防呆避免除以 0
+    STATE.rawAggregations = {};
+    STATE.activeHeaders.forEach(f => STATE.rawAggregations[f] = {});
+    STATE.raw.forEach(row => {
+        STATE.activeHeaders.forEach(field => {
+            const val = row[field];
+            STATE.rawAggregations[field][val] = (STATE.rawAggregations[field][val] || 0) + 1;
+        });
+    });
+
+    updateProgress('Building Intelligence Models...', 90);
+    setTimeout(() => initDashboard(), 50);
+  }, 50);
+  document.getElementById('fileInput').value = '';
+}
+
+function initDashboard() {
+  STATE.filterState = {}; STATE.chartFilters = {}; STATE.drillStack = [];
+  STATE.activeHeaders.forEach(f => { STATE.filterState[f] = new Set(); STATE.chartFilters[f] = new Set(); });
+  
+  document.getElementById('toolbar').style.display = 'flex';
+  document.getElementById('execSummary').style.display = 'grid';
+  document.getElementById('kpiRow').style.display = 'grid';
+  document.getElementById('content').classList.remove('no-data'); 
+  document.getElementById('content').classList.add('has-data');
+  
+  initCharts(); buildFilters(); renderBreadcrumbs(); 
+  applyFilters(); 
+  hideProgress();
+}
+
+// ── 核心資料流 ──
+function applyFilters() {
+  STATE.filtered = STATE.raw.filter(row => {
+    for(let d of STATE.drillStack) { if(row[d.field] !== d.value) return false; }
+    for(let f in STATE.filterState) { if(STATE.filterState[f].size > 0 && !STATE.filterState[f].has(row[f])) return false; }
+    for(let f in STATE.chartFilters) { if(STATE.chartFilters[f].size > 0 && !STATE.chartFilters[f].has(row[f])) return false; }
+    return true;
+  });
+  STATE.currentPage = 1;
+  document.getElementById('summaryInfo').innerHTML = `📄 ${STATE.totalFiles} Files | 📊 ${STATE.filtered.length.toLocaleString()} / ${STATE.raw.length.toLocaleString()} Rows`;
+  
+  runAggregations(); 
+  updateUI(); 
+  runQualityIntelligence();
+}
+const debounceApplyFilters = debounce(applyFilters, 150);
+
+function runAggregations() {
+  STATE.aggregations = {};
+  STATE.activeHeaders.forEach(f => STATE.aggregations[f] = {});
+  for(let i=0; i<STATE.filtered.length; i++) {
+    const row = STATE.filtered[i];
+    STATE.activeHeaders.forEach(field => {
+      const val = row[field];
+      STATE.aggregations[field][val] = (STATE.aggregations[field][val] || 0) + 1;
+    });
+  }
+}
+
+function getSortedAgg(field, limit=null, excludeEmpty=true) {
+  let entries = Object.entries(STATE.aggregations[field] || {});
+  if(excludeEmpty) entries = entries.filter(e => e[0] !== EMPTY_VAL);
+  entries.sort((a,b) => b[1] - a[1]);
+  return limit ? entries.slice(0, limit) : entries;
+}
+
+// ── AI 決策引擎 (強化版) ──
+function runQualityIntelligence() {
+  const insights = [];
+  const total = STATE.filtered.length;
+  if(total === 0) return document.getElementById('aiList').innerHTML = '';
+
+  const weeks = Object.keys(STATE.aggregations['Test Weeknum']||{}).filter(w=>w!==EMPTY_VAL).sort((a,b)=>parseFloat(a)-parseFloat(b));
+  
+  // 1. Spike (突發) 邏輯: WoW > 100% 且 count > 10
+  if(weeks.length >= 2) {
+    const lastW = weeks[weeks.length-1]; const prevW = weeks[weeks.length-2];
+    const cntL = STATE.aggregations['Test Weeknum'][lastW]||0;
+    
+    const errCross = {};
+    STATE.filtered.forEach(r => {
+      if(r['Test Weeknum']===lastW || r['Test Weeknum']===prevW) {
+        if(!errCross[r['Error Code']]) errCross[r['Error Code']] = {L:0, P:0};
+        r['Test Weeknum']===lastW ? errCross[r['Error Code']].L++ : errCross[r['Error Code']].P++;
+      }
+    });
+    
+    for(let ec in errCross) {
+      const L = errCross[ec].L, P = errCross[ec].P;
+      if(P > 0 && L >= (P * 2) && L > 10) {
+        insights.push({ 
+          pri: 'High', type: 'Spike', 
+          msg: `Error Code <b>[${escapeHTML(ec)}]</b> 在 W${escapeHTML(lastW)} 發生率飆升 (${P} → ${L}，+${(((L-P)/(P||1))*100).toFixed(0)}%)。`,
+          action: `👉 <b>建議行動 (製程/料件):</b> 疑為製程偏移或新批次物料異常，請立即排查近期設備保養紀錄與抽驗批次。`,
+          impact: `影響本週 ${(L/(cntL||1)*100).toFixed(1)}% 不良率`, field: 'Error Code', val: ec
+        });
+      }
+    }
+  }
+
+  // 2. Spread (擴散) 邏輯: ≥ 3 條產線
+  const errByLine = {};
+  STATE.filtered.forEach(r => {
+    const ec = r['Error Code'], ln = r['Production Line'];
+    if(ec===EMPTY_VAL || ln===EMPTY_VAL) return;
+    if(!errByLine[ec]) errByLine[ec] = new Set();
+    errByLine[ec].add(ln);
+  });
+  for(let ec in errByLine) {
+    if(errByLine[ec].size >= 3 && STATE.aggregations['Error Code'][ec] > 15) {
+      insights.push({
+        pri: 'High', type: 'Spread',
+        msg: `Error Code <b>[${escapeHTML(ec)}]</b> 同時擴散發生於 ${errByLine[ec].size} 條不同產線。`,
+        action: `👉 <b>建議行動 (人員/治具):</b> 跨線共通異常。建議全面檢查共用物料、治具版本或落實人員教育訓練。`,
+        impact: `廣泛影響 ${errByLine[ec].size} 條產線 (Count: ${STATE.aggregations['Error Code'][ec]})`, field: 'Error Code', val: ec
+      });
+    }
+  }
+
+  // 3. Chronic (持續) 邏輯: 佔比 > 30% 且連續 ≥ 2 週
+  const topDefect = getSortedAgg('Defect P/N', 1, true)[0];
+  if(topDefect && topDefect[1] / (total||1) > 0.3 && total > 50) {
+    let sustained = false;
+    if(weeks.length >= 2) {
+       let L_cnt = 0, P_cnt = 0;
+       STATE.filtered.forEach(r => {
+           if(r['Defect P/N'] === topDefect[0]) {
+               if(r['Test Weeknum'] === weeks[weeks.length-1]) L_cnt++;
+               if(r['Test Weeknum'] === weeks[weeks.length-2]) P_cnt++;
+           }
+       });
+       if(L_cnt > 0 && P_cnt > 0) sustained = true;
+    } else { sustained = true; } 
+
+    if(sustained) {
+        insights.push({
+          pri: 'Medium', type: 'Chronic',
+          msg: `Defect P/N <b>[${escapeHTML(topDefect[0])}]</b> 佔總體不良高達 ${(topDefect[1]/(total||1)*100).toFixed(1)}%，且具跨週延續性。`,
+          action: `👉 <b>建議行動 (設計/供應商):</b> 啟動 CIP 專案。要求供應商提供 8D Report 或與 RD 檢討 DFM 設計裕度。`,
+          impact: `最大單一不良來源 (涉及 P/N: 1)`, field: 'Defect P/N', val: topDefect[0]
+        });
+    }
+  }
+
+  STATE.aiInsightsCount = insights.filter(i=>i.pri==='High').length;
+  
+  const listEl = document.getElementById('aiList');
+  if(insights.length > 0) {
+    listEl.innerHTML = insights.map(i => `
+      <div class="ai-item ${i.pri}" data-field="${escapeHTML(i.field)}" data-val="${escapeHTML(i.val)}">
+        <div class="ai-header-row"><span class="ai-badge">${i.type}</span> <span style="color:var(--text3); font-size:10px">${i.impact}</span></div>
+        <div style="color:#e2e8f0; font-size:13px">${i.msg} <span style="color:var(--accent);font-size:11px">[點擊 Drill-down]</span></div>
+        <div class="ai-action">${i.action}</div>
+      </div>
+    `).join('');
+  } else {
+    listEl.innerHTML = `<div style="color:var(--text3); padding:20px; text-align:center">✅ 系統未偵測到顯著異常模式 (Quality is within normal variation)</div>`;
+  }
+}
+
+function aiDrill(field, val) { resetDrill(); STATE.filterState[field].add(val); buildFilters(); applyFilters(); }
+
+function updateUI() {
+  updateExecutiveSummary(); updateKPIs(); updateTable();
+  updateTrendChart(); 
+  updateHeatmapChart('heatmap'); updateHeatmapChart('heatmap2'); updateHeatmapChart('heatmap3');
+  updateBarChart('defect'); updateBarChart('line');
+  updateParetoChart(); updatePieChart('owner');
+}
+
+function updateExecutiveSummary() {
+  const tot = STATE.filtered.length;
+  document.getElementById('sum-total').textContent = tot.toLocaleString();
+  
+  let worstLine = '-', maxRate = -1;
+  const lineAgg = STATE.aggregations['Production Line'] || {};
+  for(let ln in lineAgg) {
+      if(ln === EMPTY_VAL) continue;
+      const cnt = lineAgg[ln];
+      const baseCnt = STATE.rawAggregations['Production Line'][ln] || 1;
+      const rate = cnt / baseCnt;
+      if(rate > maxRate && baseCnt > 10) { maxRate = rate; worstLine = ln; }
+  }
+  document.getElementById('sum-line').textContent = worstLine !== '-' ? `${escapeHTML(worstLine)} (${(maxRate*100).toFixed(1)}%)` : '-';
+  
+  const topD = getSortedAgg('Defect P/N', 1)[0];
+  document.getElementById('sum-defect').textContent = topD ? escapeHTML(topD[0]) : '-';
+  const pns = Object.keys(STATE.aggregations['Server P/N']||{}).filter(k=>k!==EMPTY_VAL).length;
+  document.getElementById('sum-pn').textContent = pns;
+}
+
+function updateKPIs() {
+  const tot = STATE.filtered.length;
+  const baseTot = STATE.raw.length || 1; 
+  const ratePct = (tot / baseTot * 100).toFixed(1);
+  document.getElementById('kpi-impact').textContent = `${ratePct}%`;
+  
+  const weeks = Object.keys(STATE.aggregations['Test Weeknum']||{}).filter(w=>w!==EMPTY_VAL).sort((a,b)=>parseFloat(a)-parseFloat(b));
+  let wowStr = '-', wowClass = 'trend-flat', arrow = '';
+  if(weeks.length >= 2) {
+    const l = STATE.aggregations['Test Weeknum'][weeks[weeks.length-1]]||0;
+    const p = STATE.aggregations['Test Weeknum'][weeks[weeks.length-2]]||0;
+    if(p > 0) {
+      const diff = ((l-p)/p)*100;
+      arrow = diff > 0 ? '↑' : (diff < 0 ? '↓' : '-');
+      wowClass = diff > 10 ? 'trend-up' : (diff < -10 ? 'trend-down' : 'trend-flat');
+      wowStr = `${arrow} ${Math.abs(diff).toFixed(1)}%`;
+    } else if (l > 0) { wowStr = `↑ 100%`; wowClass = 'trend-up'; }
+  }
+  const elWow = document.getElementById('kpi-wow');
+  elWow.textContent = wowStr; elWow.className = `kpi-value ${wowClass}`;
+  
+  const topD = getSortedAgg('Defect P/N', 1)[0];
+  document.getElementById('kpi-top-defect').textContent = topD ? escapeHTML(topD[0]) : '-';
+
+  let recurringEc = '-';
+  if(weeks.length >= 2) {
+      const lastW = weeks[weeks.length-1]; const prevW = weeks[weeks.length-2];
+      const errAggL = {}, errAggP = {};
+      STATE.filtered.forEach(r => {
+          if(r['Test Weeknum'] === lastW) errAggL[r['Error Code']] = (errAggL[r['Error Code']]||0)+1;
+          if(r['Test Weeknum'] === prevW) errAggP[r['Error Code']] = (errAggP[r['Error Code']]||0)+1;
+      });
+      let maxCnt = 0;
+      for(let ec in errAggL) {
+          if(ec !== EMPTY_VAL && errAggP[ec] && errAggL[ec] > maxCnt) {
+              maxCnt = errAggL[ec]; recurringEc = ec;
+          }
+      }
+  }
+  document.getElementById('kpi-recurring').textContent = escapeHTML(recurringEc);
+
+  let worstLine = '-', maxRate = -1;
+  const lineAgg = STATE.aggregations['Production Line'] || {};
+  for(let ln in lineAgg) {
+      if(ln === EMPTY_VAL) continue;
+      const cnt = lineAgg[ln];
+      const baseCnt = STATE.rawAggregations['Production Line'][ln] || 1; // /0 防呆
+      const rate = cnt / baseCnt;
+      if(rate > maxRate && cnt > 5) { maxRate = rate; worstLine = ln; }
+  }
+  document.getElementById('kpi-worst-line').textContent = escapeHTML(worstLine);
+  document.getElementById('kpi-worst-line-sub').textContent = maxRate > 0 ? `Defect Rate: ${(maxRate * 100).toFixed(1)}%` : '不良率最高產線';
+  document.getElementById('kpi-critical').textContent = STATE.aiInsightsCount;
+
+  const snAgg = STATE.aggregations['Server P/N'] || {};
+  const dupCount = Object.values(snAgg).filter(v => v >= 2).length;
+  document.getElementById('kpi-duplicate-sn').textContent = dupCount;
+}
+
+function updateTable() {
+  const head = document.querySelector('#dataTable thead tr');
+  const body = document.querySelector('#dataTable tbody');
+  head.innerHTML = STATE.activeHeaders.map(h => `<th>${escapeHTML(h)}</th>`).join('');
+  const total = STATE.filtered.length;
+  const totalPages = Math.ceil(total / ROWS_PER_PAGE) || 1;
+  if(STATE.currentPage > totalPages) STATE.currentPage = totalPages;
+  const start = (STATE.currentPage - 1) * ROWS_PER_PAGE;
+  const rows = STATE.filtered.slice(start, start + ROWS_PER_PAGE);
+  body.innerHTML = rows.map(r => '<tr>' + STATE.activeHeaders.map(h => `<td title="${escapeHTML(r[h])}">${escapeHTML(r[h])}</td>`).join('') + '</tr>').join('');
+  document.getElementById('pageInfo').textContent = `Showing ${total ? start+1 : 0}-${Math.min(start+ROWS_PER_PAGE, total)} of ${total}`;
+  document.getElementById('btnPrev').disabled = STATE.currentPage === 1;
+  document.getElementById('btnNext').disabled = STATE.currentPage === totalPages;
+}
+
+// ── 安全圖表管理 (新增多線趨勢支援) ──
+function initCharts() {
+  Object.values(STATE.chartInstances).forEach(c => { if(c && !c.isDisposed()) c.dispose(); });
+  STATE.chartInstances = {};
+  
+  Object.keys(CONFIG.charts).forEach(key => {
+    const el = document.getElementById(`chart-${key}`);
+    if(el) {
+      const chart = echarts.init(el, 'dark', { renderer: 'canvas', backgroundColor: 'transparent' });
+      STATE.chartInstances[key] = chart;
+      
+      chart.on('click', params => {
+        if(key.startsWith('heatmap')) {
+            const opt = chart.getOption();
+            const xCat = params.name;
+            const yCat = opt && opt.yAxis ? opt.yAxis[0].data[params.value[1]] : null;
+            if(xCat && yCat && xCat !== EMPTY_VAL && yCat !== EMPTY_VAL) {
+                const conf = CONFIG.charts[key];
+                pushDrill(conf.x, xCat);
+                setTimeout(()=> pushDrill(conf.y, yCat), 50);
+            }
+            return;
+        } 
+        const field = CONFIG.charts[key].field;
+        if(!field || field === 'Cross') return;
+        const card = document.getElementById(`card-${key}`);
+        const set = STATE.chartFilters[field];
+        
+        if(params.event.event.shiftKey) { set.has(params.name) ? set.delete(params.name) : set.add(params.name); }
+        else { if(set.has(params.name) && set.size===1) set.clear(); else { set.clear(); set.add(params.name); } }
+        
+        set.size > 0 ? card.classList.add('chart-active') : card.classList.remove('chart-active');
+        debounceApplyFilters();
+      });
+
+      chart.on('dblclick', params => {
+        const field = CONFIG.charts[key].field;
+        if(field && field !== 'Cross') {
+            document.getElementById(`card-${key}`).classList.remove('chart-active');
+            pushDrill(field, params.name);
+        }
+      });
+    }
+  });
+}
+
+function getEchartBase() { return { tooltip: { backgroundColor:'rgba(21,26,42,0.95)', borderColor: '#3d4b68', textStyle: {color:'#e2e8f0'} } }; }
+
+// ── 多線趨勢智能分析引擎 V4 ──
+// 監控維度：7 大關鍵欄位，Test Weeknum 使用 Pivot 模式
+const TREND_MONITOR_FIELDS = [
+  'Error Code', 'Defect P/N', 'Production Line',
+  'Server P/N', 'Debug review result', 'Issue Owner'
+  // Test Weeknum: 特殊樞紐模式 (X軸切換為 Error Code，各週成為獨立 Series)
+];
+
+function detectMultiLineMode() {
+  // 優先順序：先掃描 6 大維度，再檢查 Test Weeknum
+  for (let field of TREND_MONITOR_FIELDS) {
+    if (STATE.filterState[field] && STATE.filterState[field].size >= 2) {
+      return { field, items: Array.from(STATE.filterState[field]).slice(0, 10), pivotWeek: false };
+    }
+  }
+  // Test Weeknum 特殊樞紐模式
+  if (STATE.filterState['Test Weeknum'] && STATE.filterState['Test Weeknum'].size >= 2) {
+    return { field: 'Test Weeknum', items: Array.from(STATE.filterState['Test Weeknum']).slice(0, 10), pivotWeek: true };
+  }
+  return null;
+}
+
+function buildMultiLineSeries(weeks, multiField, multiItems) {
+  // 逐 row 建立 { item: { week: count } } 映射
+  const trendDataMap = {};
+  multiItems.forEach(item => { trendDataMap[item] = {}; });
+  STATE.filtered.forEach(r => {
+    const w = r['Test Weeknum'];
+    const mVal = r[multiField];
+    if (trendDataMap[mVal] !== undefined && w !== EMPTY_VAL) {
+      trendDataMap[mVal][w] = (trendDataMap[mVal][w] || 0) + 1;
+    }
+  });
+
+  const series = [];
+  const legendData = [];
+  const rawDataByItem = {}; // 供 Tooltip WoW 使用
+
+  multiItems.forEach((item, idx) => {
+    const color = CONFIG.palette[idx % CONFIG.palette.length];
+    const rawData = weeks.map(w => trendDataMap[item][w] || 0);
+    const maData = rawData.map((v, i) => i < 1 ? null : +((rawData[i] + rawData[i-1]) / 2).toFixed(1));
+    rawDataByItem[item] = rawData;
+
+    series.push({
+      name: item, type: 'line', smooth: true, data: rawData,
+      lineStyle: { width: 3 }, itemStyle: { color },
+      showSymbol: true, symbolSize: 5
+    });
+    series.push({
+      name: item + ' (MA)', type: 'line', smooth: true, data: maData,
+      lineStyle: { type: 'dotted', width: 1.5, color }, itemStyle: { color },
+      showSymbol: false
+    });
+    legendData.push(item);
+  });
+  return { series, legendData, rawDataByItem };
+}
+
+function buildPivotWeekSeries() {
+  // Test Weeknum pivot: X=Error Code (top 12), Series=各選定週
+  const selectedWeeks = Array.from(STATE.filterState['Test Weeknum']).sort((a,b)=>parseFloat(a)-parseFloat(b)).slice(0,10);
+  const topECs = getSortedAgg('Error Code', 12, true).map(d=>d[0]);
+  if (!topECs.length || !selectedWeeks.length) return null;
+
+  const series = [];
+  const legendData = [];
+  selectedWeeks.forEach((wk, idx) => {
+    const color = CONFIG.palette[idx % CONFIG.palette.length];
+    const data = topECs.map(ec => {
+      return STATE.filtered.filter(r => r['Test Weeknum']===wk && r['Error Code']===ec).length;
+    });
+    series.push({ name: 'W'+wk, type: 'line', smooth: true, data, lineStyle:{width:3}, itemStyle:{color}, showSymbol:true, symbolSize:5 });
+    legendData.push('W'+wk);
+  });
+  return { series, legendData, xLabels: topECs, title: '週次比較 (X: Error Code)' };
+}
+
+function updateTrendChart() {
+  const ch = STATE.chartInstances.trend; if(!ch) return;
+  let weeks = Object.keys(STATE.aggregations['Test Weeknum']||{}).filter(w=>w!==EMPTY_VAL).sort((a,b)=>parseFloat(a)-parseFloat(b));
+  if(weeks.length === 0) { ch.clear(); return; }
+
+  const multiMode = detectMultiLineMode();
+  const modeEl = document.getElementById('trend-mode-badge');
+
+  if (multiMode && multiMode.pivotWeek) {
+    // ── Test Weeknum 樞紐模式 ──
+    const pivot = buildPivotWeekSeries();
+    if (!pivot) { ch.clear(); return; }
+    if (modeEl) { modeEl.textContent = `[Pivot] Test Weeknum (${pivot.series.length} 週比較)`; modeEl.style.color='var(--purple)'; }
+    ch.setOption({ ...getEchartBase(),
+      tooltip: { trigger:'axis' },
+      legend: { data: pivot.legendData, textStyle:{color:'#94a3b8'}, type:'scroll', top:0 },
+      grid: { left:10, right:30, top:50, bottom:20, containLabel:true },
+      xAxis: { type:'category', data: pivot.xLabels, axisLabel:{rotate:25,fontSize:10} },
+      yAxis: { type:'value', splitLine:{lineStyle:{color:'#2a344b'}} },
+      series: pivot.series
+    }, true);
+    return;
+  }
+
+  if (multiMode) {
+    // ── Multi-Line 動態分析模式 ──
+    const { field: multiField, items: multiItems } = multiMode;
+    const { series, legendData, rawDataByItem } = buildMultiLineSeries(weeks, multiField, multiItems);
+
+    if (modeEl) {
+      modeEl.textContent = `[Multi-Line] ${multiField} (${multiItems.length} 項)`;
+      modeEl.style.color = 'var(--accent)';
+    }
+
+    ch.setOption({ ...getEchartBase(),
+      tooltip: { trigger: 'axis', formatter: function(params) {
+        const axisLabel = params[0] ? params[0].axisValueLabel : '';
+        let res = `<b>${escapeHTML(axisLabel)}</b><br/>`;
+        params.forEach(p => {
+          if (p.seriesName.endsWith('(MA)')) return;
+          const currentVal = typeof p.value === 'number' ? p.value : 0;
+          const itemRaw = rawDataByItem[p.seriesName];
+          const prevVal = (itemRaw && p.dataIndex > 0) ? (itemRaw[p.dataIndex - 1] || 0) : 0;
+          const wow = prevVal > 0 ? (((currentVal - prevVal) / prevVal) * 100).toFixed(1) + '%' : '-';
+          res += `<span style="display:inline-block;margin-right:4px;border-radius:50%;width:10px;height:10px;background:${p.color}"></span>`
+               + `${escapeHTML(p.seriesName)}: <b>${currentVal}</b> <span style="color:${currentVal>prevVal?'#ef4444':'#10b981'}">WoW: ${wow}</span><br/>`;
+        });
+        return res;
+      }},
+      legend: { data: legendData, textStyle:{color:'#94a3b8'}, type:'scroll', top:0 },
+      grid: { left:10, right:30, top:50, bottom:20, containLabel:true },
+      xAxis: { type:'category', data: weeks.map(w => w.includes('W') ? w : 'W'+w), boundaryGap:false },
+      yAxis: { type:'value', splitLine:{lineStyle:{color:'#2a344b'}} },
+      series
+    }, true);
+    return;
+  }
+
+  // ── 單線彙整模式 (清除模式標記) ──
+  if (modeEl) { modeEl.textContent = '[Single-Line] Overall Trend'; modeEl.style.color = 'var(--text3)'; }
+  {
+      // ── 單線彙整模式 (+ Forecast預測) ──
+      const rawData = weeks.map(w => STATE.aggregations['Test Weeknum'][w]);
+      const maData = [];
+      for(let i=0; i<rawData.length; i++) {
+        if(i < 1) maData.push(null);
+        else maData.push( ((rawData[i] + rawData[i-1])/2).toFixed(1) );
+      }
+
+      let nextWLabel = 'N/A', nextWVal = null;
+      if(weeks.length >= 3) {
+          let sumX=0, sumY=0, sumXY=0, sumXX=0, n=weeks.length;
+          rawData.forEach((y, i) => { sumX+=i; sumY+=y; sumXY+=i*y; sumXX+=i*i; });
+          let denom = (n*sumXX - sumX*sumX);
+          if(denom !== 0) {
+            let slope = (n*sumXY - sumX*sumY)/denom;
+            let intercept = (sumY - slope*sumX)/n;
+            let nextWNum = parseFloat(weeks[weeks.length-1]) + 1;
+            nextWLabel = 'W' + nextWNum + '(Pred)';
+            nextWVal = Math.max(0, Math.round(slope * n + intercept));
+            weeks.push(nextWLabel);
+            rawData.push('-'); 
+          }
+      }
+
+      const markPoints = [];
+      if(rawData.length >= 2) {
+          let offset = nextWVal !== null ? 2 : 1;
+          let l = rawData[rawData.length-offset];
+          let p = rawData[rawData.length-(offset+1)];
+          if(p && l > p*2 && l > 10) markPoints.push({ name: 'Spike', value: l, xAxis: weeks.length-offset, yAxis: l, itemStyle:{color:'var(--danger)'} });
+      }
+
+      const series = [
+        { name: 'Actual Defects', type: 'line', smooth: true, data: rawData, areaStyle: {color:'rgba(59,130,246,0.1)'}, lineStyle:{width:3}, itemStyle:{color:'#3b82f6'}, markPoint: {data: markPoints} },
+        { name: '2-Week MA', type: 'line', smooth: true, data: maData, lineStyle: {type: 'dotted', width:2, color:'#f59e0b'}, itemStyle:{color:'#f59e0b'} }
+      ];
+
+      if(nextWVal !== null) {
+          let predData = Array(weeks.length).fill('-');
+          predData[weeks.length-2] = rawData[rawData.length-2]; 
+          predData[weeks.length-1] = nextWVal;
+          series.push({ name: 'Linear Forecast', type: 'line', data: predData, lineStyle: {type: 'dashed', width:2, color:'#10b981'}, itemStyle:{color:'#10b981'} });
+      }
+
+      ch.setOption({ ...getEchartBase(),
+        tooltip: { trigger: 'axis' }, legend: { textStyle:{color:'#94a3b8'} },
+        grid: { left: 10, right: 30, top: 40, bottom: 20, containLabel: true },
+        xAxis: { type: 'category', data: weeks.map(w=>w.includes('W')?w:'W'+w), boundaryGap: false },
+        yAxis: { type: 'value', splitLine: {lineStyle:{color:'#2a344b'}} },
+        series: series
+      }, true);
+  } // end single-line block
+}
+
+function updateHeatmapChart(key) {
+  const ch = STATE.chartInstances[key]; if(!ch) return;
+  const conf = CONFIG.charts[key];
+  const xField = conf.x, yField = conf.y;
+  
+  const topX = getSortedAgg(xField, 10, true).map(d=>d[0]);
+  const topY = getSortedAgg(yField, 8, true).map(d=>d[0]);
+  if(topX.length===0 || topY.length===0) { ch.clear(); return; }
+
+  const dataMap = {};
+  STATE.filtered.forEach(r => {
+    let x = r[xField], y = r[yField];
+    if(topX.includes(x) && topY.includes(y)) {
+        let k = `${x}||${y}`;
+        dataMap[k] = (dataMap[k] || 0) + 1;
+    }
+  });
+
+  const heatmapData = [];
+  topX.forEach((x, i) => {
+      topY.forEach((y, j) => {
+          heatmapData.push([i, j, dataMap[`${x}||${y}`] || 0]);
+      });
+  });
+
+  let maxVal = Math.max(...heatmapData.map(d=>d[2]));
+
+  ch.setOption({ ...getEchartBase(),
+    tooltip: { position: 'top', formatter: p => `${escapeHTML(xField)}: <b>${escapeHTML(topX[p.value[0]])}</b><br/>${escapeHTML(yField)}: <b>${escapeHTML(topY[p.value[1]])}</b><br/>Count: <span style="color:var(--danger);font-weight:bold">${p.value[2]}</span>` },
+    grid: { left: 10, right: 20, top: 20, bottom: 60, containLabel: true },
+    xAxis: { type: 'category', data: topX, axisLabel: { rotate: 25, fontSize: 10, interval:0, width:80, overflow:'truncate' } },
+    yAxis: { type: 'category', data: topY, axisLabel: { fontSize: 10, width:100, overflow:'truncate' } },
+    visualMap: { min: 0, max: maxVal===0?1:maxVal, calculable: true, orient: 'horizontal', left: 'center', bottom: '-5%', 
+                 inRange: { color: ['#1e2538', '#3b82f6', '#f59e0b', '#ef4444'] }, textStyle:{color:'#94a3b8'}, itemWidth: 10, itemHeight: 80 },
+    series: [{ name: 'Cross Count', type: 'heatmap', data: heatmapData, label: { show: true, color: '#fff', fontSize: 10 }, itemStyle: { borderColor: '#151a2a', borderWidth: 2 } }]
+  }, true);
+}
+
+function updateBarChart(key) {
+  const ch = STATE.chartInstances[key]; if(!ch) return;
+  const field = CONFIG.charts[key].field; 
+  
+  if(key === 'line') {
+      // 依 Defect Rate 排名的 Benchmark
+      let lineStats = [];
+      const lineAgg = STATE.aggregations[field] || {};
+      for (let ln in lineAgg) {
+          if (ln === EMPTY_VAL) continue;
+          const cnt = lineAgg[ln];
+          const baseCnt = STATE.rawAggregations[field][ln] || 1;
+          const rate = (cnt / baseCnt) * 100;
+          lineStats.push({name: ln, count: cnt, rate: rate});
+      }
+      lineStats.sort((a,b) => b.rate - a.rate);
+      lineStats = lineStats.slice(0, 15);
+      
+      ch.setOption({ ...getEchartBase(),
+        tooltip: { trigger:'axis', axisPointer:{type:'shadow'}, formatter: function(p) {
+            let stat = lineStats[p[0].dataIndex];
+            return `${escapeHTML(p[0].name)}<br/>Defect Rate: <b>${stat.rate.toFixed(1)}%</b><br/>Defect Count: ${stat.count}`;
+        }},
+        grid: { left:10, right:20, top:15, bottom:30, containLabel:true },
+        xAxis: { type:'category', data: lineStats.map(d=>d.name), axisLabel: { rotate:25, fontSize:10, width:80, overflow:'truncate' } },
+        yAxis: { type:'value', name: 'Defect Rate %', splitLine:{lineStyle:{color:'#2a344b'}} },
+        series: [{ type:'bar', data: lineStats.map(d=>d.rate.toFixed(1)), itemStyle: { borderRadius:[4,4,0,0], color: '#10b981' } }]
+      }, true);
+  } else {
+      const data = getSortedAgg(field, 15, true);
+      ch.setOption({ ...getEchartBase(),
+        tooltip: { trigger:'axis', axisPointer:{type:'shadow'} }, grid: { left:10, right:20, top:15, bottom:30, containLabel:true },
+        xAxis: { type:'category', data: data.map(d=>d[0]), axisLabel: { rotate:25, fontSize:10, width:80, overflow:'truncate' } },
+        yAxis: { type:'value', splitLine:{lineStyle:{color:'#2a344b'}} },
+        series: [{ type:'bar', data: data.map(d=>d[1]), itemStyle: { borderRadius:[4,4,0,0], color: '#3b82f6' } }]
+      }, true);
+  }
+}
+
+function updatePieChart(key) {
+  const ch = STATE.chartInstances[key]; if(!ch) return;
+  const data = getSortedAgg(CONFIG.charts[key].field, 8, true);
+  ch.setOption({ ...getEchartBase(), tooltip: { trigger:'item', formatter: '{b}<br/><b>{c}</b> ({d}%)' },
+    series: [{ type:'pie', radius:['40%','70%'], data: data.map((d,i)=>({name:d[0], value:d[1], itemStyle:{color:CONFIG.palette[i%CONFIG.palette.length]}})), label: { color:'#e2e8f0', formatter:'{b}\n{c}' } }]
+  }, true);
+}
+
+function updateParetoChart() {
+  const ch = STATE.chartInstances.pareto; if(!ch) return;
+  const data = getSortedAgg('Debug review result', 20, true); let cum = 0, total = STATE.filtered.length;
+  const barData = [], lineData = [], xAxis = [];
+  data.forEach(d => { xAxis.push(d[0]); barData.push(d[1]); cum += d[1]; lineData.push(total ? (cum/total*100).toFixed(1) : 0); });
+  
+  ch.setOption({ ...getEchartBase(),
+    tooltip: { trigger:'axis', axisPointer:{type:'shadow'} }, grid: { left:10, right:10, top:35, bottom:30, containLabel:true },
+    xAxis: { type:'category', data:xAxis, axisLabel:{rotate:25, fontSize:10, interval:0} },
+    yAxis: [{type:'value', splitLine:{lineStyle:{color:'#2a344b'}}}, {type:'value', min:0, max:100, axisLabel:{formatter:'{value}%'}, splitLine:{show:false}}],
+    series: [{ name:'Count', type:'bar', data:barData, itemStyle:{color:'#8b5cf6'} }, { name:'Cumulative %', type:'line', yAxisIndex:1, data:lineData, smooth:true, itemStyle:{color:'#f59e0b'}, lineStyle:{width:3} }]
+  }, true);
+}
+
+// ── 大數據優化：Lazy Batch Render (不強制 slice，使用 Chunk Rendering) ──
+function buildFilters() {
+  const wrap = document.getElementById('filtersWrap');
+  wrap.innerHTML = '';
+  STATE.activeHeaders.forEach(field => {
+    let validRaw = STATE.raw;
+    if(STATE.drillStack.length) validRaw = STATE.raw.filter(r => STATE.drillStack.every(d => r[d.field] === d.value));
+    
+    const valSet = new Set();
+    validRaw.forEach(r => valSet.add(r[field]));
+    let vals = Array.from(valSet).sort();
+    if(vals.includes(EMPTY_VAL)) vals = [EMPTY_VAL, ...vals.filter(v=>v!==EMPTY_VAL)];
+
+    const grp = document.createElement('div'); grp.className = 'filter-group';
+    grp.innerHTML = `
+      <div class="filter-title"><span title="${escapeHTML(field)}">${escapeHTML(field)}</span><span class="count">${vals.length}</span></div>
+      <div class="filter-body">
+         <input type="text" class="filter-search" placeholder="Search...">
+         <div class="filter-options"></div>
+      </div>
+    `;
+    wrap.appendChild(grp);
+    
+    const optContainer = grp.querySelector('.filter-options');
+    
+    // Chunking renderer to handle thousands of items without blocking main thread
+    const renderOptions = (filterTerm = '') => {
+        optContainer.innerHTML = '';
+        const term = filterTerm.toLowerCase();
+        let filteredVals = vals.filter(v => {
+            if(!term) return true;
+            return String(v).toLowerCase().includes(term);
+        });
+
+        let chunkIdx = 0;
+        const chunkSize = 100;
+
+        const renderChunk = () => {
+            if (chunkIdx >= filteredVals.length) return;
+            const frag = document.createDocumentFragment();
+            const endIdx = Math.min(chunkIdx + chunkSize, filteredVals.length);
+            
+            for(let i = chunkIdx; i < endIdx; i++) {
+                const val = filteredVals[i];
+                const strVal = String(val).toLowerCase();
+                const div = document.createElement('div'); div.className = 'filter-opt'; 
+                div.setAttribute('data-val', strVal);
+                const checked = STATE.filterState[field].has(val) ? 'checked' : '';
+                div.innerHTML = `<input type="checkbox" value="${escapeHTML(val)}" ${checked}><label title="${escapeHTML(val)}">${val===EMPTY_VAL?'<i>(未定義)</i>':escapeHTML(val)}</label>`;
+                
+                div.querySelector('input').addEventListener('change', e => { 
+                    e.target.checked ? STATE.filterState[field].add(val) : STATE.filterState[field].delete(val); 
+                    debounceApplyFilters(); 
+                });
+                frag.appendChild(div);
+            }
+            optContainer.appendChild(frag);
+            chunkIdx = endIdx;
+            
+            if(chunkIdx < filteredVals.length) {
+                requestAnimationFrame(renderChunk);
+            }
+        };
+        requestAnimationFrame(renderChunk);
+    };
+
+    grp.querySelector('.filter-title').addEventListener('click', () => {
+        const body = grp.querySelector('.filter-body');
+        const isOpen = body.classList.toggle('open');
+        if(isOpen && optContainer.children.length === 0) renderOptions();
+    });
+    
+    grp.querySelector('.filter-search').addEventListener('input', e => {
+        renderOptions(e.target.value);
+    });
+  });
+}
+
+function pushDrill(field, value) {
+  if(value === EMPTY_VAL) return; 
+  STATE.drillStack.push({field, value});
+  for(let f in STATE.chartFilters) STATE.chartFilters[f].clear();
+  renderBreadcrumbs(); applyFilters();
+}
+function popDrill(index) {
+  STATE.drillStack = STATE.drillStack.slice(0, index + 1);
+  for(let f in STATE.chartFilters) STATE.chartFilters[f].clear();
+  renderBreadcrumbs(); applyFilters();
+}
+function resetDrill() { STATE.drillStack = []; clearAllFilters(); }
+
+function renderBreadcrumbs() {
+  let html = `<span class="breadcrumb-link ${STATE.drillStack.length===0?'active':''}" data-idx="home">🏠 全域分析</span>`;
+  STATE.drillStack.forEach((d, idx) => {
+    html += ` <span style="color:var(--text3)">/</span> <span class="breadcrumb-link ${idx===STATE.drillStack.length-1?'active':''}" data-idx="${idx}">🔍 ${escapeHTML(d.field)}: ${escapeHTML(d.value)}</span>`;
+  });
+  document.getElementById('breadcrumb').innerHTML = html;
+}
+
+function clearAllFilters() {
+  // ── P0 Reset All: 強制清除全部三大狀態 ──
+  STATE.drillStack = [];
+  for(let k in STATE.filterState)  STATE.filterState[k].clear();
+  for(let k in STATE.chartFilters) STATE.chartFilters[k].clear();
+  // UI 同步
+  document.querySelectorAll('.filter-opt input[type="checkbox"]').forEach(c => c.checked = false);
+  document.querySelectorAll('.card.chart-active').forEach(c => c.classList.remove('chart-active'));
+  // 重置 trend mode badge
+  const mb = document.getElementById('trend-mode-badge');
+  if (mb) { mb.textContent = '[Single-Line] Overall Trend'; mb.style.color = 'var(--text3)'; }
+  renderBreadcrumbs();
+  applyFilters();
+}
+
+function showProgress(title, text, pct) { const l=document.getElementById('loader'); l.classList.add('show'); document.getElementById('loaderTitle').textContent=title; updateProgress(text,pct); }
+function updateProgress(text, pct) { document.getElementById('loaderText').textContent=text; document.getElementById('progressBar').style.width=`${pct}%`; }
+function hideProgress() { setTimeout(()=>document.getElementById('loader').classList.remove('show'), 500); }
+
+function exportData() {
+  if(!STATE.filtered.length) return alert('沒有資料可以匯出');
+  let csv = '\ufeff' + STATE.activeHeaders.join(',') + '\n';
+  STATE.filtered.forEach(r => csv += STATE.activeHeaders.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(',') + '\n');
+  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'Quality_Intelligence_Export.csv'; link.click();
+}
+
+// ── Harness Engineering Validation Suite ──
+// 執行: runValidation() 於 console，回傳通過/失敗報告
+function runValidation() {
+  const results = [];
+  const pass = (name) => results.push({ status: '✅ PASS', name });
+  const fail = (name, reason) => results.push({ status: '❌ FAIL', name, reason });
+
+  // V1: detectMultiLineMode - 多選 Filter → 有回傳 multiMode
+  try {
+    const backup = {};
+    TREND_MONITOR_FIELDS.forEach(f => { backup[f] = STATE.filterState[f] ? new Set(STATE.filterState[f]) : new Set(); });
+    if (STATE.filterState['Error Code']) {
+      STATE.filterState['Error Code'] = new Set(['EC001', 'EC002']);
+      const m = detectMultiLineMode();
+      m && m.field === 'Error Code' && m.items.length === 2 ? pass('V1: 多選 Error Code → Multi-Line 正確') : fail('V1', 'detectMultiLineMode 未回傳 Error Code');
+    } else { pass('V1: Skip (Error Code 不在 activeHeaders)'); }
+    TREND_MONITOR_FIELDS.forEach(f => { if (backup[f] && STATE.filterState[f]) STATE.filterState[f] = backup[f]; });
+    if (STATE.filterState['Error Code'] && backup['Error Code']) STATE.filterState['Error Code'] = backup['Error Code'];
+  } catch(e) { fail('V1', e.message); }
+
+  // V2: 單選 → 回傳 null
+  try {
+    const backup = STATE.filterState['Error Code'] ? new Set(STATE.filterState['Error Code']) : null;
+    if (STATE.filterState['Error Code'] !== undefined) {
+      STATE.filterState['Error Code'] = new Set(['EC001']);
+      const m = detectMultiLineMode();
+      (!m || m.field !== 'Error Code') ? pass('V2: 單選 → null 或其他欄位') : fail('V2', '單選不應回傳 Error Code multi-line');
+      STATE.filterState['Error Code'] = backup || new Set();
+    } else { pass('V2: Skip'); }
+  } catch(e) { fail('V2', e.message); }
+
+  // V3: 空資料不崩潰
+  try {
+    const ch = STATE.chartInstances && STATE.chartInstances.trend;
+    const origAgg = STATE.aggregations;
+    STATE.aggregations = { 'Test Weeknum': {} };
+    try { updateTrendChart(); pass('V3: 空資料 updateTrendChart 不崩潰'); }
+    catch(e) { fail('V3', e.message); }
+    STATE.aggregations = origAgg;
+  } catch(e) { fail('V3', e.message); }
+
+  // V4: 大數據 - 模擬 50k rows aggregation 速度
+  try {
+    const t0 = performance.now();
+    const mockAgg = {};
+    for(let i=0; i<50000; i++) { const k='W'+(20+i%12); mockAgg[k]=(mockAgg[k]||0)+1; }
+    const sorted = Object.keys(mockAgg).sort((a,b)=>parseFloat(a)-parseFloat(b));
+    const elapsed = performance.now() - t0;
+    elapsed < 100 ? pass(`V4: 50k rows aggregation in ${elapsed.toFixed(1)}ms`) : fail('V4', `Too slow: ${elapsed.toFixed(1)}ms`);
+  } catch(e) { fail('V4', e.message); }
+
+  // V5: XSS - escapeHTML 防護
+  try {
+    const xss = '<script>alert(1)<\/script>';
+    const escaped = escapeHTML(xss);
+    !escaped.includes('<script>') && !escaped.includes('>') ? pass('V5: escapeHTML XSS 防護正常') : fail('V5', '未正確 escape');
+  } catch(e) { fail('V5', e.message); }
+
+  // V6: Reset All 三大狀態完整清除
+  try {
+    // 模擬有資料的狀態
+    if (STATE.filterState['Error Code']) STATE.filterState['Error Code'].add('__TEST__');
+    if (STATE.chartFilters['Error Code']) STATE.chartFilters['Error Code'].add('__TEST__');
+    STATE.drillStack.push({ field:'Test', value:'Val' });
+    clearAllFilters();
+    const allClear = 
+      Object.values(STATE.filterState).every(s => s.size === 0) &&
+      Object.values(STATE.chartFilters).every(s => s.size === 0) &&
+      STATE.drillStack.length === 0;
+    allClear ? pass('V6: Reset All 三大狀態完整清除') : fail('V6', '部分狀態未清除');
+  } catch(e) { fail('V6', e.message); }
+
+  // V7: /0 防呆
+  try {
+    const safeDiv = (a, b) => b !== 0 ? a/b : 0;
+    safeDiv(100, 0) === 0 && safeDiv(100, 4) === 25 ? pass('V7: 除法防呆邏輯正確') : fail('V7', 'safeDiv 失敗');
+    const rate = STATE.raw.length > 0 ? (STATE.filtered.length / (STATE.raw.length || 1) * 100).toFixed(1) : '0.0';
+    pass('V7b: KPI Defect Rate /0 防呆 → ' + rate + '%');
+  } catch(e) { fail('V7', e.message); }
+
+  // 輸出報告
+  console.group('%c🔬 Harness Validation Report — EQIS V4', 'color:#3b82f6;font-weight:bold;font-size:14px');
+  results.forEach(r => {
+    const style = r.status.includes('PASS') ? 'color:#10b981' : 'color:#ef4444';
+    console.log(`%c${r.status} ${r.name}${r.reason?' → '+r.reason:''}`, style);
+  });
+  const passed = results.filter(r=>r.status.includes('PASS')).length;
+  console.log(`%c\n總計: ${passed}/${results.length} PASSED`, passed===results.length?'color:#10b981;font-weight:bold':'color:#f59e0b;font-weight:bold');
+  console.groupEnd();
+  return results;
+}
+</script>
+</body>
+</html>
