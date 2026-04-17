@@ -227,9 +227,9 @@ tr:hover td { background: rgba(59,130,246,0.05); }
     <div class="chart-row full">
       <div class="card" id="card-correlation">
         <div class="card-title">
-          Pearson Correlation Analysis
+          Association Analysis
           <span style="font-size:10px;color:var(--text3)">Error Code Description vs Debug review result</span>
-          <span id="kpi-pearson-r" style="font-family:var(--mono);font-size:12px;padding:2px 10px;border-radius:10px;background:rgba(59,130,246,0.12);color:var(--accent);border:1px solid rgba(59,130,246,0.3);transition:all 0.3s;white-space:nowrap">r = —</span>
+          <span id="kpi-pearson-r" style="font-family:var(--mono);font-size:11px;padding:2px 10px;border-radius:10px;background:rgba(59,130,246,0.12);color:var(--accent);border:1px solid rgba(59,130,246,0.3);transition:all 0.3s;white-space:nowrap">— (No Data)</span>
         </div>
         <div class="chart-box" id="chart-correlation" style="min-height:350px;"></div>
       </div>
@@ -536,26 +536,24 @@ function runQualityIntelligence() {
     }
   }
 
-  // Pearson correlation AI insight
+  // Association Analysis AI insight (Cramér's V)
   if (STATE.activeHeaders.includes('Error Code Description') && STATE.activeHeaders.includes('Debug review result') && total > 5) {
     try {
-      const { pearsonR } = computeCorrelationData();
-      let corrLabel, corrPri;
-      if (pearsonR >= 0.7)       { corrLabel = 'High Positive Correlation'; corrPri = 'High'; }
-      else if (pearsonR >= 0.4)  { corrLabel = 'Medium Correlation';        corrPri = 'Medium'; }
-      else if (pearsonR <= -0.4) { corrLabel = 'Negative Correlation';       corrPri = 'Medium'; }
-      else                       { corrLabel = null; corrPri = null; }
-      if (corrPri) {
-        const corrAction = pearsonR >= 0.7
-          ? '高度相關，可用 Error Code Description 預測 Debug 結果，建議建立自動分類模型。'
-          : pearsonR >= 0.4
-          ? '中度相關，建議進一步交叉分析具體 Error Code 與 Debug 結果組合。'
-          : '負相關，特定 Error Code 可能導致非預期 Debug 結果，建議逐一核查。';
+      const { cramersV, chiSq, pValue, assocLabel, df } = computeAssociationData();
+      let assocPri;
+      if (cramersV >= 0.7)      assocPri = 'High';
+      else if (cramersV >= 0.4) assocPri = 'Medium';
+      else                      assocPri = null;
+      if (assocPri) {
+        const pStr = pValue < 0.001 ? 'p < 0.001' : pValue < 0.01 ? 'p < 0.01' : pValue < 0.05 ? 'p < 0.05' : `p = ${pValue.toFixed(3)}`;
+        const assocAction = cramersV >= 0.7
+          ? '高度關聯，特定 Error Code Description 強烈預測 Debug 結果，建議建立自動分類決策規則。'
+          : '中度關聯，建議進一步交叉分析高頻配對組合，制定對應 SOP。';
         insights.push({
-          pri: corrPri, type: 'Correlation',
-          msg: `Error Code Description 與 Debug review result 的 Pearson r = <b>${pearsonR.toFixed(3)}</b>，判定為 <b>${corrLabel}</b>。`,
-          action: `👉 <b>建議行動:</b> ${corrAction}`,
-          impact: `r = ${pearsonR.toFixed(3)} | ${corrLabel}`,
+          pri: assocPri, type: 'Association',
+          msg: `Error Code Description 與 Debug review result 的 Cramér's V = <b>${cramersV.toFixed(3)}</b>，判定為 <b>${assocLabel}</b>（χ²=${chiSq.toFixed(2)}, df=${df}, ${pStr}）。`,
+          action: `👉 <b>建議行動:</b> ${assocAction}`,
+          impact: `V = ${cramersV.toFixed(3)} | ${assocLabel}`,
           field: '', val: ''
         });
       }
@@ -585,7 +583,7 @@ function updateUI() {
   updateTrendChart(); 
   updateHeatmapChart('heatmap'); updateHeatmapChart('heatmap2'); updateHeatmapChart('heatmap3');
   updateBarChart('defect'); updateBarChart('line');
-  updateParetoChart(); updatePieChart('owner'); updateCorrelationChart();
+  updateParetoChart(); updatePieChart('owner'); updateAssociationChart();
 }
 
 function updateExecutiveSummary() {
@@ -1149,92 +1147,148 @@ function exportData() {
   const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'Quality_Intelligence_Export.csv'; link.click();
 }
 
-// ── Pearson Correlation Analysis ──
-function computeCorrelationData() {
+// ── Association Analysis: Chi-Square + Cramér's V (Categorical Fields) ──
+
+function _assocNormalSF(z) {
+  // 1 - Φ(z): Abramowitz & Stegun 26.2.17, max error 7.5e-8
+  if (z < -8) return 1;
+  if (z > 8) return 0;
+  const b1 = 0.319381530, b2 = -0.356563782, b3 = 1.781477937;
+  const b4 = -1.821255978, b5 = 1.330274429, p = 0.2316419;
+  const t = 1 / (1 + p * Math.abs(z));
+  const pdf = Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);
+  const poly = t * (b1 + t * (b2 + t * (b3 + t * (b4 + t * b5))));
+  const tail = pdf * poly;
+  return z >= 0 ? tail : 1 - tail;
+}
+
+function chiSquarePValue(chiSq, df) {
+  // Wilson-Hilferty normal approximation for chi-square p-value
+  if (df <= 0 || chiSq <= 0) return 1;
+  const x = chiSq / df;
+  const h = 1 - 2 / (9 * df);
+  const s = Math.sqrt(2 / (9 * df));
+  if (s === 0) return 1;
+  return _assocNormalSF((Math.pow(x, 1 / 3) - h) / s);
+}
+
+function calculateChiSquare(crossTab, rowTotals, colTotals, grandTotal) {
+  // crossTab[xi][yi] = observed count; colTotals[xi], rowTotals[yi] = marginals
+  const r = rowTotals.length, c = colTotals.length;
+  const df = (r - 1) * (c - 1);
+  if (grandTotal === 0 || df <= 0) return { chiSq: 0, df: 0, pValue: 1 };
+  let chiSq = 0;
+  for (let xi = 0; xi < c; xi++) {
+    for (let yi = 0; yi < r; yi++) {
+      const O = crossTab[xi][yi] || 0;
+      const E = (colTotals[xi] * rowTotals[yi]) / grandTotal;
+      if (E > 0) chiSq += (O - E) * (O - E) / E;
+    }
+  }
+  return { chiSq, df, pValue: chiSquarePValue(chiSq, df) };
+}
+
+function calculateCramersV(chiSq, n, r, c) {
+  // V = sqrt(χ² / (n × min(r-1, c-1)))
+  if (n === 0 || Math.min(r, c) <= 1) return 0;
+  const minDim = Math.min(r - 1, c - 1);
+  if (minDim <= 0) return 0;
+  return Math.sqrt(chiSq / (n * minDim));
+}
+
+function computeAssociationData() {
   const xField = 'Error Code Description';
   const yField = 'Debug review result';
+  const EMPTY = { scatterData: [], cramersV: 0, chiSq: 0, pValue: 1, df: 0, assocLabel: 'Weak Association', assocColor: '#94a3b8', xLabels: [], yLabels: [], grandTotal: 0 };
+
   const xAgg = {}, yAgg = {};
   STATE.filtered.forEach(r => {
     const x = r[xField], y = r[yField];
     if (x && x !== EMPTY_VAL) xAgg[x] = (xAgg[x] || 0) + 1;
     if (y && y !== EMPTY_VAL) yAgg[y] = (yAgg[y] || 0) + 1;
   });
-  const xEntries = Object.entries(xAgg).sort((a, b) => b[1] - a[1]);
-  const yEntries = Object.entries(yAgg).sort((a, b) => b[1] - a[1]);
-  const xMap = {}, yMap = {};
-  xEntries.forEach((e, i) => { xMap[e[0]] = i + 1; });
-  yEntries.forEach((e, i) => { yMap[e[0]] = i + 1; });
-  const xLabels = xEntries.map(e => e[0]);
-  const yLabels = yEntries.map(e => e[0]);
 
-  const crossMap = {};
+  // Top N by frequency to keep chart readable
+  const xLabels = Object.entries(xAgg).sort((a, b) => b[1] - a[1]).slice(0, 20).map(e => e[0]);
+  const yLabels = Object.entries(yAgg).sort((a, b) => b[1] - a[1]).slice(0, 15).map(e => e[0]);
+  if (xLabels.length === 0 || yLabels.length === 0) return EMPTY;
+
+  // Build index maps
+  const xIdx = {}, yIdx = {};
+  xLabels.forEach((l, i) => { xIdx[l] = i; });
+  yLabels.forEach((l, i) => { yIdx[l] = i; });
+
+  // Cross-tab matrix crossTab[xi][yi]
+  const crossTab = xLabels.map(() => yLabels.map(() => 0));
+  let grandTotal = 0;
   STATE.filtered.forEach(r => {
     const x = r[xField], y = r[yField];
-    if (!x || x === EMPTY_VAL || !y || y === EMPTY_VAL) return;
-    const k = x + '||' + y;
-    if (!crossMap[k]) crossMap[k] = { xLabel: x, yLabel: y, xValue: xMap[x], yValue: yMap[y], count: 0 };
-    crossMap[k].count++;
-  });
-  const scatterData = Object.values(crossMap);
-
-  const xs = [], ys = [];
-  STATE.filtered.forEach(r => {
-    const x = r[xField], y = r[yField];
-    if (!x || x === EMPTY_VAL || !y || y === EMPTY_VAL) return;
-    xs.push(xMap[x]);
-    ys.push(yMap[y]);
-  });
-
-  let pearsonR = 0;
-  const n = xs.length;
-  if (n >= 2) {
-    const meanX = xs.reduce((a, b) => a + b, 0) / n;
-    const meanY = ys.reduce((a, b) => a + b, 0) / n;
-    let num = 0, denomX = 0, denomY = 0;
-    for (let i = 0; i < n; i++) {
-      const dx = xs[i] - meanX, dy = ys[i] - meanY;
-      num += dx * dy; denomX += dx * dx; denomY += dy * dy;
+    if (xIdx[x] !== undefined && yIdx[y] !== undefined) {
+      crossTab[xIdx[x]][yIdx[y]]++;
+      grandTotal++;
     }
-    const denom = Math.sqrt(denomX * denomY);
-    pearsonR = denom === 0 ? 0 : num / denom;
-  }
-  return { scatterData, pearsonR, xLabels, yLabels };
+  });
+  if (grandTotal === 0) return EMPTY;
+
+  // Marginal totals
+  const colTotals = xLabels.map((_, xi) => yLabels.reduce((s, _, yi) => s + crossTab[xi][yi], 0));
+  const rowTotals = yLabels.map((_, yi) => xLabels.reduce((s, _, xi) => s + crossTab[xi][yi], 0));
+
+  const { chiSq, df, pValue } = calculateChiSquare(crossTab, rowTotals, colTotals, grandTotal);
+  const cramersV = calculateCramersV(chiSq, grandTotal, yLabels.length, xLabels.length);
+
+  let assocLabel, assocColor;
+  if (cramersV >= 0.7)      { assocLabel = 'High Association';   assocColor = '#ef4444'; }
+  else if (cramersV >= 0.4) { assocLabel = 'Medium Association'; assocColor = '#f59e0b'; }
+  else                      { assocLabel = 'Weak Association';   assocColor = '#94a3b8'; }
+
+  // Non-zero cells only → scatter data
+  const scatterData = [];
+  xLabels.forEach((xl, xi) => {
+    yLabels.forEach((yl, yi) => {
+      const count = crossTab[xi][yi];
+      if (count > 0) {
+        scatterData.push({ xi, yi, xLabel: xl, yLabel: yl, count, pct: (count / grandTotal * 100).toFixed(1) });
+      }
+    });
+  });
+
+  return { scatterData, cramersV, chiSq, pValue, df, assocLabel, assocColor, xLabels, yLabels, grandTotal };
 }
 
-function updateCorrelationChart() {
+function updateAssociationChart() {
   const ch = STATE.chartInstances.correlation;
   if (!ch) return;
   const xField = 'Error Code Description';
   const yField = 'Debug review result';
   const rEl = document.getElementById('kpi-pearson-r');
+
   if (!STATE.activeHeaders.includes(xField) || !STATE.activeHeaders.includes(yField) || STATE.filtered.length === 0) {
     ch.clear();
-    if (rEl) rEl.textContent = 'r = —';
+    if (rEl) { rEl.textContent = '— (No Data)'; rEl.style.color = 'var(--accent)'; rEl.style.borderColor = 'rgba(59,130,246,0.3)'; }
     return;
   }
-  const { scatterData, pearsonR, xLabels, yLabels } = computeCorrelationData();
 
-  let corrLabel, corrColor;
-  if (pearsonR >= 0.7)       { corrLabel = 'High Positive Correlation'; corrColor = '#ef4444'; }
-  else if (pearsonR >= 0.4)  { corrLabel = 'Medium Correlation';        corrColor = '#f59e0b'; }
-  else if (pearsonR <= -0.4) { corrLabel = 'Negative Correlation';      corrColor = '#8b5cf6'; }
-  else                       { corrLabel = 'Weak Correlation';          corrColor = '#94a3b8'; }
+  const { scatterData, cramersV, chiSq, pValue, df, assocLabel, assocColor, xLabels, yLabels, grandTotal } = computeAssociationData();
 
+  // Update KPI badge: Cramér's V | p-value | Association Strength
   if (rEl) {
-    rEl.textContent = `r = ${pearsonR.toFixed(3)}`;
-    rEl.style.color = corrColor;
-    rEl.style.borderColor = corrColor;
+    const pStr = pValue < 0.001 ? 'p<0.001' : pValue < 0.01 ? 'p<0.01' : pValue < 0.05 ? 'p<0.05' : `p=${pValue.toFixed(3)}`;
+    rEl.textContent = `V=${cramersV.toFixed(3)} | ${pStr} | ${assocLabel}`;
+    rEl.style.color = assocColor;
+    rEl.style.borderColor = assocColor;
   }
 
   if (scatterData.length === 0) { ch.clear(); return; }
 
   const maxCount = Math.max(...scatterData.map(d => d.count));
   const seriesData = scatterData.map(d => ({
-    value: [d.xValue, d.yValue],
-    symbolSize: Math.max(8, Math.min(40, 8 + (d.count / (maxCount || 1)) * 32)),
+    value: [d.xi, d.yi],
+    symbolSize: Math.max(6, Math.min(52, 6 + (d.count / (maxCount || 1)) * 46)),
     xLabel: d.xLabel,
     yLabel: d.yLabel,
-    count: d.count
+    count: d.count,
+    pct: d.pct
   }));
 
   ch.setOption({
@@ -1245,49 +1299,55 @@ function updateCorrelationChart() {
         const d = params.data;
         return `<b>Error Code Description:</b> ${escapeHTML(d.xLabel)}<br/>`
              + `<b>Debug review result:</b> ${escapeHTML(d.yLabel)}<br/>`
-             + `<b>Count:</b> ${d.count}<br/>`
-             + `<b>Pearson r:</b> <span style="color:${corrColor}">${pearsonR.toFixed(3)} (${corrLabel})</span>`;
+             + `<b>Count:</b> ${d.count} (${d.pct}%)<br/>`
+             + `<b>Association Strength:</b> <span style="color:${assocColor}">${assocLabel}</span><br/>`
+             + `<b>Cramér's V:</b> ${cramersV.toFixed(3)} | χ²=${chiSq.toFixed(2)}, df=${df}`;
       }
     },
-    grid: { left: 10, right: 20, top: 40, bottom: 50, containLabel: true },
+    grid: { left: 10, right: 30, top: 40, bottom: 80, containLabel: true },
     xAxis: {
       type: 'value',
-      name: 'Error Code Desc (rank)',
+      min: -0.5,
+      max: xLabels.length - 0.5,
+      name: 'Error Code Description (category)',
       nameLocation: 'middle',
-      nameGap: 28,
-      min: 1,
+      nameGap: 55,
+      interval: 1,
       splitLine: { lineStyle: { color: '#2a344b' } },
       axisLabel: {
         fontSize: 9,
+        rotate: 30,
         formatter: function(v) {
-          const idx = Math.round(v) - 1;
-          if (idx < 0 || idx >= xLabels.length) return '';
-          const l = xLabels[idx];
-          return l.length > 10 ? l.substring(0, 10) + '…' : l;
+          const i = Math.round(v);
+          if (i < 0 || i >= xLabels.length) return '';
+          const l = xLabels[i];
+          return l.length > 13 ? l.substring(0, 13) + '…' : l;
         }
       }
     },
     yAxis: {
       type: 'value',
-      name: 'Debug Result (rank)',
+      min: -0.5,
+      max: yLabels.length - 0.5,
+      name: 'Debug review result (category)',
       nameLocation: 'middle',
-      nameGap: 75,
-      min: 1,
+      nameGap: 85,
+      interval: 1,
       splitLine: { lineStyle: { color: '#2a344b' } },
       axisLabel: {
         fontSize: 9,
         formatter: function(v) {
-          const idx = Math.round(v) - 1;
-          if (idx < 0 || idx >= yLabels.length) return '';
-          const l = yLabels[idx];
-          return l.length > 10 ? l.substring(0, 10) + '…' : l;
+          const i = Math.round(v);
+          if (i < 0 || i >= yLabels.length) return '';
+          const l = yLabels[i];
+          return l.length > 13 ? l.substring(0, 13) + '…' : l;
         }
       }
     },
     series: [{
       type: 'scatter',
       data: seriesData,
-      itemStyle: { color: corrColor, opacity: 0.75 },
+      itemStyle: { color: assocColor, opacity: 0.78 },
       emphasis: { itemStyle: { opacity: 1, borderColor: '#fff', borderWidth: 2 } }
     }]
   }, true);
