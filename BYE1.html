@@ -325,6 +325,36 @@ tr:hover td { background: rgba(59,130,246,0.05); }
     </div>
     <!-- ── End Repeated Failure Analysis Section ── -->
 
+    <!-- ══════════════════════════════════════════════════════════════════
+         ── Repeated Retest Detail Table Section ──
+         ══════════════════════════════════════════════════════════════════ -->
+    <div class="card" id="card-retest-table">
+      <div class="card-title">
+        🔄 Repeated Retest Detail Table
+        <span style="font-size:10px;color:var(--text3)">Debug review result 含「Retest Pass」的機台序列分析</span>
+      </div>
+      <div class="table-wrap">
+        <table id="retestTable">
+          <thead><tr>
+            <th>Server S/N</th>
+            <th style="text-align:center">測試總次數</th>
+            <th style="text-align:center">當前測試序位（第幾次）</th>
+            <th>Error Code</th>
+            <th>測試週別</th>
+          </tr></thead>
+          <tbody id="retestTableBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span id="retestPageInfo">Showing 0-0 of 0</span>
+        <div>
+          <button class="btn" id="retestBtnPrev">Prev</button>
+          <button class="btn" id="retestBtnNext" style="margin-left:8px">Next</button>
+        </div>
+      </div>
+    </div>
+    <!-- ── End Repeated Retest Detail Table Section ── -->
+
     <div class="card">
       <div class="card-title">Detail Raw Data Table</div>
       <div class="table-wrap"><table id="dataTable"><thead><tr></tr></thead><tbody></tbody></table></div>
@@ -1928,6 +1958,140 @@ document.addEventListener('DOMContentLoaded', function() {
   }, 150));
 });
 // ── End Repeated Failure / Ineffective Repair Analysis Module ──
+
+// ══════════════════════════════════════════════════════════════════
+// ── Repeated Retest Analysis Module ──
+// Groups filtered rows where Debug review result contains "Retest Pass"
+// by Server S/N, assigns sequence number (Nth Retest Pass per S/N),
+// and renders a detail table that syncs with sidebar filters.
+// ══════════════════════════════════════════════════════════════════
+
+const RT_STATE = {
+  rows: [],
+  currentPage: 1
+};
+const RT_ROWS_PER_PAGE = 50;
+
+function computeRetestData() {
+  RT_STATE.rows = [];
+
+  const snField = rfGetSnField(); // reuse existing helper
+  if (!snField || !STATE.activeHeaders.includes('Debug review result')) return;
+
+  // Collect rows where Debug review result contains "Retest Pass" (case-insensitive)
+  const retestRows = STATE.filtered.filter(row => {
+    const dr = row['Debug review result'];
+    return dr && dr !== EMPTY_VAL && dr.toLowerCase().includes('retest pass');
+  });
+  if (retestRows.length === 0) return;
+
+  // Group by Server S/N
+  const snGroups = {};
+  retestRows.forEach(row => {
+    const sn = row[snField];
+    if (!sn || sn === EMPTY_VAL) return;
+    if (!snGroups[sn]) snGroups[sn] = [];
+    snGroups[sn].push(row);
+  });
+
+  // Sort each group by Test Weeknum, assign sequence numbers
+  Object.entries(snGroups).forEach(([sn, rows]) => {
+    if (STATE.activeHeaders.includes('Test Weeknum')) {
+      rows.sort((a, b) => {
+        const na = parseFloat(a['Test Weeknum']);
+        const nb = parseFloat(b['Test Weeknum']);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return String(a['Test Weeknum']).localeCompare(String(b['Test Weeknum']));
+      });
+    }
+    const totalCount = rows.length;
+    rows.forEach((row, idx) => {
+      RT_STATE.rows.push({
+        sn,
+        totalCount,
+        seqNum: idx + 1,
+        ec:      row['Error Code']   || EMPTY_VAL,
+        weeknum: row['Test Weeknum'] || EMPTY_VAL
+      });
+    });
+  });
+
+  // Sort output: by S/N then by sequence
+  RT_STATE.rows.sort((a, b) => {
+    if (a.sn < b.sn) return -1;
+    if (a.sn > b.sn) return 1;
+    return a.seqNum - b.seqNum;
+  });
+}
+
+function updateRetestTable() {
+  const tbody = document.getElementById('retestTableBody');
+  if (!tbody) return;
+
+  const rows  = RT_STATE.rows;
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / RT_ROWS_PER_PAGE));
+
+  if (RT_STATE.currentPage > totalPages) RT_STATE.currentPage = totalPages;
+  if (RT_STATE.currentPage < 1)         RT_STATE.currentPage = 1;
+
+  const start     = (RT_STATE.currentPage - 1) * RT_ROWS_PER_PAGE;
+  const pageSlice = rows.slice(start, start + RT_ROWS_PER_PAGE);
+
+  tbody.innerHTML = pageSlice.map(r => {
+    const seqColor = r.seqNum === 1
+      ? 'color:var(--success)'
+      : (r.seqNum >= 3 ? 'color:var(--danger);font-weight:700' : 'color:var(--warning)');
+    return `<tr>
+      <td title="${escapeHTML(r.sn)}">${escapeHTML(r.sn)}</td>
+      <td style="text-align:center;color:var(--accent);font-weight:600;font-family:var(--mono)">${r.totalCount}</td>
+      <td style="text-align:center;font-family:var(--mono);${seqColor}">第 ${r.seqNum} 次</td>
+      <td title="${escapeHTML(r.ec)}">${escapeHTML(r.ec)}</td>
+      <td style="font-family:var(--mono)">${escapeHTML(r.weeknum)}</td>
+    </tr>`;
+  }).join('');
+
+  const piEl   = document.getElementById('retestPageInfo');
+  const prvBtn = document.getElementById('retestBtnPrev');
+  const nxtBtn = document.getElementById('retestBtnNext');
+  if (piEl)   piEl.textContent = `Showing ${total ? start + 1 : 0}–${Math.min(start + RT_ROWS_PER_PAGE, total)} of ${total}`;
+  if (prvBtn) prvBtn.disabled  = RT_STATE.currentPage === 1;
+  if (nxtBtn) nxtBtn.disabled  = RT_STATE.currentPage === totalPages;
+}
+
+function updateRetestAnalysis() {
+  computeRetestData();
+  RT_STATE.currentPage = 1;
+  updateRetestTable();
+}
+
+// Hook into updateUI (non-destructive wrap, chained after RF module's wrap)
+;(function() {
+  const _origUpdateUI_RT = updateUI;
+  updateUI = function() {
+    _origUpdateUI_RT.call(this);
+    try {
+      updateRetestAnalysis();
+    } catch (rtErr) {
+      console.warn('[RT Module Error]', rtErr);
+    }
+  };
+})();
+
+// DOM events for Retest table pagination
+document.addEventListener('DOMContentLoaded', function() {
+  const rtPrvBtn = document.getElementById('retestBtnPrev');
+  const rtNxtBtn = document.getElementById('retestBtnNext');
+  if (rtPrvBtn) rtPrvBtn.addEventListener('click', function() {
+    RT_STATE.currentPage = Math.max(1, RT_STATE.currentPage - 1);
+    updateRetestTable();
+  });
+  if (rtNxtBtn) rtNxtBtn.addEventListener('click', function() {
+    RT_STATE.currentPage++;
+    updateRetestTable();
+  });
+});
+// ── End Repeated Retest Analysis Module ──
 
 // ── Harness Engineering Validation Suite ──
 // 執行: runValidation() 於 console，回傳通過/失敗報告
