@@ -224,6 +224,107 @@ tr:hover td { background: rgba(59,130,246,0.05); }
       <div class="card" id="card-owner"><div class="card-title">Issue Owner Distribution <span style="font-size:10px;color:var(--text3)">(責任歸屬)</span></div><div class="chart-box" id="chart-owner"></div></div>
     </div>
 
+    <div class="chart-row full">
+      <div class="card" id="card-correlation">
+        <div class="card-title">
+          Association Analysis
+          <span style="font-size:10px;color:var(--text3)">Error Code Description vs Debug review result</span>
+          <span id="kpi-pearson-r" style="font-family:var(--mono);font-size:11px;padding:2px 10px;border-radius:10px;background:rgba(59,130,246,0.12);color:var(--accent);border:1px solid rgba(59,130,246,0.3);transition:all 0.3s;white-space:nowrap">— (No Data)</span>
+        </div>
+        <div class="chart-box" id="chart-correlation" style="min-height:350px;"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         ── Repeated Failure / Ineffective Repair Analysis Section ──
+         ══════════════════════════════════════════════════════════════════ -->
+    <div style="font-size:14px;font-weight:600;color:var(--warning);padding-bottom:8px;border-bottom:1px solid var(--border);margin-top:10px;">
+      🔁 Repeated Failure / Ineffective Repair Analysis
+    </div>
+
+    <!-- RF KPI Cards (6 columns) -->
+    <div class="kpi-row" id="rfKpiRow" style="grid-template-columns:repeat(6,1fr);">
+      <div class="kpi alert" id="rf-kpi-box-ineffective" title="同機台+同ErrorCode+同DebugResult 重複出現2次以上的唯一組合數">
+        <div class="kpi-label">Ineffective Repair Count <span>ℹ️</span></div>
+        <div class="kpi-value" id="rf-val-ineffective">0</div>
+        <div class="kpi-sub">重複失效唯一組合數</div>
+      </div>
+      <div class="kpi warn" id="rf-kpi-box-repeatrate" title="重複失效組合 / 全部唯一(SN+EC+DR)組合 × 100%">
+        <div class="kpi-label">Repeat Rate (%) <span>ℹ️</span></div>
+        <div class="kpi-value" id="rf-val-repeatrate">0%</div>
+        <div class="kpi-sub">重複失效佔比</div>
+      </div>
+      <div class="kpi" id="rf-kpi-box-repeatcount" title="所有重複失效群組的維修次數總和">
+        <div class="kpi-label">Repeat Repair Count <span>ℹ️</span></div>
+        <div class="kpi-value" id="rf-val-repeatcount">0</div>
+        <div class="kpi-sub">重複維修總次數</div>
+      </div>
+      <div class="kpi" id="rf-kpi-box-avgdays" title="1st Fix → 2nd Fix 平均間隔天數 (需有日期欄位)">
+        <div class="kpi-label">Avg Days Between Fixes <span>ℹ️</span></div>
+        <div class="kpi-value" id="rf-val-avgdays">-</div>
+        <div class="kpi-sub">1st Fix → 2nd Fix 平均間隔</div>
+      </div>
+      <div class="kpi alert" id="rf-kpi-box-topresult" title="出現最多重複失效的 Debug review result">
+        <div class="kpi-label">Top Repeat Debug Result <span>ℹ️</span></div>
+        <div class="kpi-value" id="rf-val-topresult" style="font-size:14px;line-height:1.3">-</div>
+        <div class="kpi-sub">最常重複的Debug結果</div>
+      </div>
+      <div class="kpi alert" id="rf-kpi-box-toppn" title="出現最多重複失效的 Defect P/N">
+        <div class="kpi-label">Top Repeat Defect P/N <span>ℹ️</span></div>
+        <div class="kpi-value" id="rf-val-toppn" style="font-size:14px;line-height:1.3">-</div>
+        <div class="kpi-sub">最常重複的缺陷P/N</div>
+      </div>
+    </div>
+
+    <!-- RF Chart -->
+    <div class="chart-row full">
+      <div class="card" id="card-rf-chart">
+        <div class="card-title">
+          Repeated Failure Analysis
+          <span style="font-size:10px;color:var(--text3)">(點擊 Bar → Drill-down to Table below)</span>
+        </div>
+        <div class="chart-box" id="chart-rf" style="min-height:320px;"></div>
+      </div>
+    </div>
+
+    <!-- RF Detail Table -->
+    <div class="card" id="card-rf-table">
+      <div class="card-title">
+        Repeated Failure Detail Table
+        <span id="rf-table-filter-badge"
+          style="font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:10px;
+                 background:rgba(245,158,11,0.12);color:var(--warning);display:none;"></span>
+        <button class="btn" id="rf-clear-drill"
+          style="display:none;font-size:10px;padding:4px 10px;margin-left:8px;">✕ Clear Filter</button>
+      </div>
+      <div class="table-wrap">
+        <table id="rfTable">
+          <thead><tr>
+            <th>Server S/N</th>
+            <th>Error Code</th>
+            <th>Error Code Description</th>
+            <th>Defect P/N</th>
+            <th>1st Fix Date</th>
+            <th>2nd Fix Date</th>
+            <th>Days Between Repairs</th>
+            <th>Debug review result</th>
+            <th>Debug Action</th>
+            <th>Repeat Count</th>
+            <th>Action Item / Status</th>
+          </tr></thead>
+          <tbody id="rfTableBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span id="rfPageInfo">Showing 0-0 of 0</span>
+        <div>
+          <button class="btn" id="rfBtnPrev">Prev</button>
+          <button class="btn" id="rfBtnNext" style="margin-left:8px">Next</button>
+        </div>
+      </div>
+    </div>
+    <!-- ── End Repeated Failure Analysis Section ── -->
+
     <div class="card">
       <div class="card-title">Detail Raw Data Table</div>
       <div class="table-wrap"><table id="dataTable"><thead><tr></tr></thead><tbody></tbody></table></div>
@@ -252,7 +353,8 @@ const CONFIG = {
     'defect':   { field: 'Defect P/N', type: 'bar' },
     'line':     { field: 'Production Line', type: 'bar' }, // 改為 Rate 排序
     'pareto':   { field: 'Debug review result', type: 'pareto' },
-    'owner':    { field: 'Issue Owner', type: 'pie' }
+    'owner':    { field: 'Issue Owner', type: 'pie' },
+    'correlation': { field: 'Cross', type: 'scatter', x: 'Error Code Description', y: 'Debug review result' }
   },
   palette: ['#ef4444','#f59e0b','#3b82f6','#10b981','#8b5cf6','#06b6d4','#ec4899','#64748b', '#22d3ee', '#f43f5e']
 };
@@ -524,6 +626,30 @@ function runQualityIntelligence() {
     }
   }
 
+  // Association Analysis AI insight (Cramér's V)
+  if (STATE.activeHeaders.includes('Error Code Description') && STATE.activeHeaders.includes('Debug review result') && total > 5) {
+    try {
+      const { cramersV, chiSq, pValue, assocLabel, df } = computeAssociationData();
+      let assocPri;
+      if (cramersV >= 0.7)      assocPri = 'High';
+      else if (cramersV >= 0.4) assocPri = 'Medium';
+      else                      assocPri = null;
+      if (assocPri) {
+        const pStr = pValue < 0.001 ? 'p < 0.001' : pValue < 0.01 ? 'p < 0.01' : pValue < 0.05 ? 'p < 0.05' : `p = ${pValue.toFixed(3)}`;
+        const assocAction = cramersV >= 0.7
+          ? '高度關聯，特定 Error Code Description 強烈預測 Debug 結果，建議建立自動分類決策規則。'
+          : '中度關聯，建議進一步交叉分析高頻配對組合，制定對應 SOP。';
+        insights.push({
+          pri: assocPri, type: 'Association',
+          msg: `Error Code Description 與 Debug review result 的 Cramér's V = <b>${cramersV.toFixed(3)}</b>，判定為 <b>${assocLabel}</b>（χ²=${chiSq.toFixed(2)}, df=${df}, ${pStr}）。`,
+          action: `👉 <b>建議行動:</b> ${assocAction}`,
+          impact: `V = ${cramersV.toFixed(3)} | ${assocLabel}`,
+          field: '', val: ''
+        });
+      }
+    } catch(e) { /* skip if required fields missing in data */ }
+  }
+
   STATE.aiInsightsCount = insights.filter(i=>i.pri==='High').length;
   
   const listEl = document.getElementById('aiList');
@@ -547,7 +673,7 @@ function updateUI() {
   updateTrendChart(); 
   updateHeatmapChart('heatmap'); updateHeatmapChart('heatmap2'); updateHeatmapChart('heatmap3');
   updateBarChart('defect'); updateBarChart('line');
-  updateParetoChart(); updatePieChart('owner');
+  updateParetoChart(); updatePieChart('owner'); updateAssociationChart();
 }
 
 function updateExecutiveSummary() {
@@ -1110,6 +1236,698 @@ function exportData() {
   const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
   const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'Quality_Intelligence_Export.csv'; link.click();
 }
+
+// ── Association Analysis: Chi-Square + Cramér's V (Categorical Fields) ──
+
+function _assocNormalSF(z) {
+  // 1 - Φ(z): Abramowitz & Stegun 26.2.17, max error 7.5e-8
+  if (z < -8) return 1;
+  if (z > 8) return 0;
+  const b1 = 0.319381530, b2 = -0.356563782, b3 = 1.781477937;
+  const b4 = -1.821255978, b5 = 1.330274429, p = 0.2316419;
+  const t = 1 / (1 + p * Math.abs(z));
+  const pdf = Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);
+  const poly = t * (b1 + t * (b2 + t * (b3 + t * (b4 + t * b5))));
+  const tail = pdf * poly;
+  return z >= 0 ? tail : 1 - tail;
+}
+
+function chiSquarePValue(chiSq, df) {
+  // Wilson-Hilferty normal approximation for chi-square p-value
+  if (df <= 0 || chiSq <= 0) return 1;
+  const x = chiSq / df;
+  const h = 1 - 2 / (9 * df);
+  const s = Math.sqrt(2 / (9 * df));
+  if (s === 0) return 1;
+  return _assocNormalSF((Math.pow(x, 1 / 3) - h) / s);
+}
+
+function calculateChiSquare(crossTab, rowTotals, colTotals, grandTotal) {
+  // crossTab[xi][yi] = observed count; colTotals[xi], rowTotals[yi] = marginals
+  const r = rowTotals.length, c = colTotals.length;
+  const df = (r - 1) * (c - 1);
+  if (grandTotal === 0 || df <= 0) return { chiSq: 0, df: 0, pValue: 1 };
+  let chiSq = 0;
+  for (let xi = 0; xi < c; xi++) {
+    for (let yi = 0; yi < r; yi++) {
+      const O = crossTab[xi][yi] || 0;
+      const E = (colTotals[xi] * rowTotals[yi]) / grandTotal;
+      if (E > 0) chiSq += (O - E) * (O - E) / E;
+    }
+  }
+  return { chiSq, df, pValue: chiSquarePValue(chiSq, df) };
+}
+
+function calculateCramersV(chiSq, n, r, c) {
+  // V = sqrt(χ² / (n × min(r-1, c-1)))
+  if (n === 0 || Math.min(r, c) <= 1) return 0;
+  const minDim = Math.min(r - 1, c - 1);
+  if (minDim <= 0) return 0;
+  return Math.sqrt(chiSq / (n * minDim));
+}
+
+function computeAssociationData() {
+  const xField = 'Error Code Description';
+  const yField = 'Debug review result';
+  const EMPTY = { scatterData: [], cramersV: 0, chiSq: 0, pValue: 1, df: 0, assocLabel: 'Weak Association', assocColor: '#94a3b8', xLabels: [], yLabels: [], grandTotal: 0 };
+
+  const xAgg = {}, yAgg = {};
+  STATE.filtered.forEach(r => {
+    const x = r[xField], y = r[yField];
+    if (x && x !== EMPTY_VAL) xAgg[x] = (xAgg[x] || 0) + 1;
+    if (y && y !== EMPTY_VAL) yAgg[y] = (yAgg[y] || 0) + 1;
+  });
+
+  // Top N by frequency to keep chart readable
+  const xLabels = Object.entries(xAgg).sort((a, b) => b[1] - a[1]).slice(0, 20).map(e => e[0]);
+  const yLabels = Object.entries(yAgg).sort((a, b) => b[1] - a[1]).slice(0, 15).map(e => e[0]);
+  if (xLabels.length === 0 || yLabels.length === 0) return EMPTY;
+
+  // Build index maps
+  const xIdx = {}, yIdx = {};
+  xLabels.forEach((l, i) => { xIdx[l] = i; });
+  yLabels.forEach((l, i) => { yIdx[l] = i; });
+
+  // Cross-tab matrix crossTab[xi][yi]
+  const crossTab = xLabels.map(() => yLabels.map(() => 0));
+  let grandTotal = 0;
+  STATE.filtered.forEach(r => {
+    const x = r[xField], y = r[yField];
+    if (xIdx[x] !== undefined && yIdx[y] !== undefined) {
+      crossTab[xIdx[x]][yIdx[y]]++;
+      grandTotal++;
+    }
+  });
+  if (grandTotal === 0) return EMPTY;
+
+  // Marginal totals
+  const colTotals = xLabels.map((_, xi) => yLabels.reduce((s, _, yi) => s + crossTab[xi][yi], 0));
+  const rowTotals = yLabels.map((_, yi) => xLabels.reduce((s, _, xi) => s + crossTab[xi][yi], 0));
+
+  const { chiSq, df, pValue } = calculateChiSquare(crossTab, rowTotals, colTotals, grandTotal);
+  const cramersV = calculateCramersV(chiSq, grandTotal, yLabels.length, xLabels.length);
+
+  let assocLabel, assocColor;
+  if (cramersV >= 0.7)      { assocLabel = 'High Association';   assocColor = '#ef4444'; }
+  else if (cramersV >= 0.4) { assocLabel = 'Medium Association'; assocColor = '#f59e0b'; }
+  else                      { assocLabel = 'Weak Association';   assocColor = '#94a3b8'; }
+
+  // Non-zero cells only → scatter data
+  const scatterData = [];
+  xLabels.forEach((xl, xi) => {
+    yLabels.forEach((yl, yi) => {
+      const count = crossTab[xi][yi];
+      if (count > 0) {
+        scatterData.push({ xi, yi, xLabel: xl, yLabel: yl, count, pct: (count / grandTotal * 100).toFixed(1) });
+      }
+    });
+  });
+
+  return { scatterData, cramersV, chiSq, pValue, df, assocLabel, assocColor, xLabels, yLabels, grandTotal };
+}
+
+function updateAssociationChart() {
+  const ch = STATE.chartInstances.correlation;
+  if (!ch) return;
+  const xField = 'Error Code Description';
+  const yField = 'Debug review result';
+  const rEl = document.getElementById('kpi-pearson-r');
+
+  if (!STATE.activeHeaders.includes(xField) || !STATE.activeHeaders.includes(yField) || STATE.filtered.length === 0) {
+    ch.clear();
+    if (rEl) { rEl.textContent = '— (No Data)'; rEl.style.color = 'var(--accent)'; rEl.style.borderColor = 'rgba(59,130,246,0.3)'; }
+    return;
+  }
+
+  const { scatterData, cramersV, chiSq, pValue, df, assocLabel, assocColor, xLabels, yLabels, grandTotal } = computeAssociationData();
+
+  // Update KPI badge: Cramér's V | p-value | Association Strength
+  if (rEl) {
+    const pStr = pValue < 0.001 ? 'p<0.001' : pValue < 0.01 ? 'p<0.01' : pValue < 0.05 ? 'p<0.05' : `p=${pValue.toFixed(3)}`;
+    rEl.textContent = `V=${cramersV.toFixed(3)} | ${pStr} | ${assocLabel}`;
+    rEl.style.color = assocColor;
+    rEl.style.borderColor = assocColor;
+  }
+
+  if (scatterData.length === 0) { ch.clear(); return; }
+
+  const maxCount = Math.max(...scatterData.map(d => d.count));
+  const seriesData = scatterData.map(d => ({
+    value: [d.xi, d.yi],
+    symbolSize: Math.max(6, Math.min(52, 6 + (d.count / (maxCount || 1)) * 46)),
+    xLabel: d.xLabel,
+    yLabel: d.yLabel,
+    count: d.count,
+    pct: d.pct
+  }));
+
+  ch.setOption({
+    ...getEchartBase(),
+    tooltip: {
+      trigger: 'item',
+      formatter: function(params) {
+        const d = params.data;
+        return `<b>Error Code Description:</b> ${escapeHTML(d.xLabel)}<br/>`
+             + `<b>Debug review result:</b> ${escapeHTML(d.yLabel)}<br/>`
+             + `<b>Count:</b> ${d.count} (${d.pct}%)<br/>`
+             + `<b>Association Strength:</b> <span style="color:${assocColor}">${assocLabel}</span><br/>`
+             + `<b>Cramér's V:</b> ${cramersV.toFixed(3)} | χ²=${chiSq.toFixed(2)}, df=${df}`;
+      }
+    },
+    grid: { left: 10, right: 30, top: 40, bottom: 80, containLabel: true },
+    xAxis: {
+      type: 'value',
+      min: -0.5,
+      max: xLabels.length - 0.5,
+      name: 'Error Code Description (category)',
+      nameLocation: 'middle',
+      nameGap: 55,
+      interval: 1,
+      splitLine: { lineStyle: { color: '#2a344b' } },
+      axisLabel: {
+        fontSize: 9,
+        rotate: 30,
+        formatter: function(v) {
+          const i = Math.round(v);
+          if (i < 0 || i >= xLabels.length) return '';
+          const l = xLabels[i];
+          return l.length > 13 ? l.substring(0, 13) + '…' : l;
+        }
+      }
+    },
+    yAxis: {
+      type: 'value',
+      min: -0.5,
+      max: yLabels.length - 0.5,
+      name: 'Debug review result (category)',
+      nameLocation: 'middle',
+      nameGap: 85,
+      interval: 1,
+      splitLine: { lineStyle: { color: '#2a344b' } },
+      axisLabel: {
+        fontSize: 9,
+        formatter: function(v) {
+          const i = Math.round(v);
+          if (i < 0 || i >= yLabels.length) return '';
+          const l = yLabels[i];
+          return l.length > 13 ? l.substring(0, 13) + '…' : l;
+        }
+      }
+    },
+    series: [{
+      type: 'scatter',
+      data: seriesData,
+      itemStyle: { color: assocColor, opacity: 0.78 },
+      emphasis: { itemStyle: { opacity: 1, borderColor: '#fff', borderWidth: 2 } }
+    }]
+  }, true);
+
+  if (!ch._corrClickBound) {
+    ch.on('click', function(params) {
+      const d = params.data;
+      if (d && d.xLabel && d.xLabel !== EMPTY_VAL) {
+        pushDrill(xField, d.xLabel);
+      }
+    });
+    ch._corrClickBound = true;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Repeated Failure / Ineffective Repair Analysis Module ──
+// Repeat Same Failure Definition:
+//   同一個 Server S/N + 同一個 Error Code + 同一個 Debug review result
+//   在不同日期/週次 重複出現 2 次以上
+// ══════════════════════════════════════════════════════════════════════════════
+
+const RF_STATE = {
+  groups: [],       // All repeat groups from computeRepeatedFailureData()
+  filtered: [],     // Groups after optional chart drill-down filter
+  drillKey: null,   // Active drill value (e.g. specific debug result or defect P/N)
+  drillField: null, // 'Debug review result' | 'Defect P/N'
+  currentPage: 1,
+  chartInstance: null,
+  _clickBound: false,
+  statusMap: {}     // Persists Action Item / Status selections across filter changes
+};
+const RF_ROWS_PER_PAGE = 50;
+const RF_STATUS_OPTIONS = [
+  'Open', 'Under Investigation', 'Need SOP Review',
+  'Need Supplier Review', 'Need RD Validation', 'Closed'
+];
+
+// ── Column Detection Helpers ──
+function rfGetSnField() {
+  if (STATE.activeHeaders.includes('Server S/N'))  return 'Server S/N';
+  if (STATE.activeHeaders.includes('Server P/N'))  return 'Server P/N';
+  return null;
+}
+function rfGetDateField() {
+  const candidates = ['Fix Date', 'Repair Date', 'Date', 'Test Date', 'Test Weeknum'];
+  for (const c of candidates) { if (STATE.activeHeaders.includes(c)) return c; }
+  return null;
+}
+function rfGetDescField() {
+  if (STATE.activeHeaders.includes('Error Code Description')) return 'Error Code Description';
+  if (STATE.activeHeaders.includes('Debug Desc.'))            return 'Debug Desc.';
+  return null;
+}
+function rfGetActionField() {
+  if (STATE.activeHeaders.includes('Debug Action')) return 'Debug Action';
+  if (STATE.activeHeaders.includes('Debug Desc.')) return 'Debug Desc.';
+  return null;
+}
+
+// ── Core Computation ──
+// Validates: same SN + EC + DR, distinct dates >= 2, sorted date order
+function computeRepeatedFailureData() {
+  RF_STATE.groups = [];
+  const snField     = rfGetSnField();
+  const dateField   = rfGetDateField();
+  const descField   = rfGetDescField();
+  const actionField = rfGetActionField();
+
+  // Guard: require SN, Error Code, Debug review result
+  if (!snField ||
+      !STATE.activeHeaders.includes('Error Code') ||
+      !STATE.activeHeaders.includes('Debug review result')) {
+    return;
+  }
+
+  // Group rows by composite key (SN || ErrorCode || DebugResult)
+  const groupMap = {};
+  STATE.filtered.forEach(row => {
+    const sn = row[snField];
+    const ec = row['Error Code'];
+    const dr = row['Debug review result'];
+    // Skip rows with any missing key field
+    if (!sn || sn === EMPTY_VAL ||
+        !ec || ec === EMPTY_VAL ||
+        !dr || dr === EMPTY_VAL) return;
+
+    const key = `${sn}||${ec}||${dr}`;
+    if (!groupMap[key]) {
+      groupMap[key] = {
+        sn, ec, dr,
+        desc:        descField   ? (row[descField]   || EMPTY_VAL) : EMPTY_VAL,
+        defectPn:    row['Defect P/N'] || EMPTY_VAL,
+        debugAction: actionField ? (row[actionField] || EMPTY_VAL) : EMPTY_VAL,
+        dates:       [],
+        key
+      };
+    }
+    const dateVal = (dateField && row[dateField]) ? row[dateField] : null;
+    if (dateVal && dateVal !== EMPTY_VAL) groupMap[key].dates.push(dateVal);
+  });
+
+  // Filter to groups with >= 2 DISTINCT dates → Repeat Same Failure
+  Object.values(groupMap).forEach(g => {
+    // Validation: distinct dates only
+    const distinctDates = [...new Set(g.dates)].filter(d => d && d !== EMPTY_VAL);
+    if (distinctDates.length < 2) return;
+
+    // Validation: sort dates correctly (numeric weeknum first, then ISO string)
+    distinctDates.sort((a, b) => {
+      const na = parseFloat(a), nb = parseFloat(b);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;    // numeric (weeknum)
+      const da = new Date(a), db = new Date(b);
+      if (!isNaN(da.getTime()) && !isNaN(db.getTime())) return da - db; // ISO date
+      return String(a).localeCompare(String(b));        // fallback string
+    });
+
+    const firstFix  = distinctDates[0];
+    const secondFix = distinctDates[1];
+
+    // Compute days/weeks between 1st and 2nd fix
+    let daysBetween = '-';
+    const d1 = new Date(firstFix), d2 = new Date(secondFix);
+    if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+      // Valid ISO dates → days
+      daysBetween = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+    } else {
+      // Numeric weeknum → week difference
+      const n1 = parseFloat(firstFix), n2 = parseFloat(secondFix);
+      if (!isNaN(n1) && !isNaN(n2)) daysBetween = (n2 - n1) + ' wks';
+    }
+
+    groups_push(g, firstFix, secondFix, daysBetween, distinctDates);
+  });
+}
+// Helper to avoid ESLint block-scope confusion
+function groups_push(g, firstFix, secondFix, daysBetween, distinctDates) {
+  RF_STATE.groups.push({
+    key:          g.key,
+    sn:           g.sn,
+    ec:           g.ec,
+    desc:         g.desc,
+    defectPn:     g.defectPn,
+    dr:           g.dr,
+    debugAction:  g.debugAction,
+    firstFix,
+    secondFix,
+    daysBetween,
+    repeatCount:  distinctDates.length,
+    distinctDates
+  });
+}
+
+// ── Apply Chart Drill Filter ──
+function rfApplyDrill() {
+  if (!RF_STATE.drillKey || !RF_STATE.drillField) {
+    RF_STATE.filtered = RF_STATE.groups.slice();
+  } else {
+    RF_STATE.filtered = RF_STATE.groups.filter(g => {
+      if (RF_STATE.drillField === 'Debug review result') return g.dr       === RF_STATE.drillKey;
+      if (RF_STATE.drillField === 'Defect P/N')          return g.defectPn === RF_STATE.drillKey;
+      return true;
+    });
+  }
+  RF_STATE.currentPage = 1;
+}
+
+// ── KPI Updater ──
+// Validates Repeat Rate = ineffectiveCount / totalUniqueCombos * 100
+function updateRepeatedFailureKPIs() {
+  computeRepeatedFailureData();   // always recompute from current STATE.filtered
+  const groups    = RF_STATE.groups;
+  const snField   = rfGetSnField();
+
+  // KPI 1: Ineffective Repair Count (unique repeat groups)
+  const ineffectiveCount = groups.length;
+
+  // KPI 2: Repeat Rate (%) — Validation: denominator = all unique (SN+EC+DR) in filtered data
+  const allCombos = new Set();
+  if (snField && STATE.activeHeaders.includes('Error Code') && STATE.activeHeaders.includes('Debug review result')) {
+    STATE.filtered.forEach(row => {
+      const sn = row[snField], ec = row['Error Code'], dr = row['Debug review result'];
+      if (sn && sn !== EMPTY_VAL && ec && ec !== EMPTY_VAL && dr && dr !== EMPTY_VAL) {
+        allCombos.add(`${sn}||${ec}||${dr}`);
+      }
+    });
+  }
+  const repeatRate = allCombos.size > 0
+    ? (ineffectiveCount / allCombos.size * 100).toFixed(1)
+    : '0.0';
+
+  // KPI 3: Repeat Repair Count (sum of all occurrences across repeat groups)
+  const repeatRepairCount = groups.reduce((s, g) => s + g.repeatCount, 0);
+
+  // KPI 4: Avg Days Between 1st Fix and 2nd Fix (numeric only; skip 'wks' strings)
+  const numericDays = groups
+    .map(g => typeof g.daysBetween === 'number' ? g.daysBetween : null)
+    .filter(d => d !== null);
+  const avgDays = numericDays.length > 0
+    ? (numericDays.reduce((a, b) => a + b, 0) / numericDays.length).toFixed(1)
+    : '-';
+
+  // KPI 5: Top Repeat Debug Result
+  const drCount = {};
+  groups.forEach(g => { drCount[g.dr] = (drCount[g.dr] || 0) + 1; });
+  const topDrEntry = Object.entries(drCount).sort((a, b) => b[1] - a[1])[0];
+
+  // KPI 6: Top Repeat Defect P/N
+  const pnCount = {};
+  groups.forEach(g => {
+    if (g.defectPn && g.defectPn !== EMPTY_VAL)
+      pnCount[g.defectPn] = (pnCount[g.defectPn] || 0) + 1;
+  });
+  const topPnEntry = Object.entries(pnCount).sort((a, b) => b[1] - a[1])[0];
+
+  // Update DOM safely
+  const rfSafe = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  rfSafe('rf-val-ineffective',  ineffectiveCount);
+  rfSafe('rf-val-repeatrate',   repeatRate + '%');
+  rfSafe('rf-val-repeatcount',  repeatRepairCount);
+  rfSafe('rf-val-avgdays',      avgDays === '-' ? '-' : avgDays + ' days');
+  rfSafe('rf-val-topresult',    topDrEntry ? escapeHTML(topDrEntry[0]) : '-');
+  rfSafe('rf-val-toppn',        topPnEntry ? escapeHTML(topPnEntry[0]) : '-');
+
+  // Apply drill and sync
+  rfApplyDrill();
+}
+
+// ── Chart Updater ──
+// Uses horizontal bar chart; Y=Debug review result, X=Repeat Count
+function updateRepeatedFailureChart() {
+  const el = document.getElementById('chart-rf');
+  if (!el) return;
+
+  // Lazy-init or recover disposed instance
+  if (!RF_STATE.chartInstance || RF_STATE.chartInstance.isDisposed()) {
+    // Reuse existing ECharts instance on this DOM element if available
+    const existing = typeof echarts !== 'undefined' ? echarts.getInstanceByDom(el) : null;
+    RF_STATE.chartInstance = (existing && !existing.isDisposed())
+      ? existing
+      : echarts.init(el, 'dark', { renderer: 'canvas', backgroundColor: 'transparent' });
+    RF_STATE._clickBound = false;
+  }
+
+  // Bind click once per instance lifecycle
+  if (!RF_STATE._clickBound) {
+    RF_STATE.chartInstance.on('click', function(params) {
+      if (!params || !params.name || params.name === EMPTY_VAL) return;
+      const val   = params.name;
+      const field = 'Debug review result';  // Y-axis dimension
+
+      if (RF_STATE.drillKey === val && RF_STATE.drillField === field) {
+        // Deselect → clear drill
+        RF_STATE.drillKey   = null;
+        RF_STATE.drillField = null;
+        const cardEl = document.getElementById('card-rf-chart');
+        if (cardEl) cardEl.classList.remove('chart-active');
+      } else {
+        RF_STATE.drillKey   = val;
+        RF_STATE.drillField = field;
+        const cardEl = document.getElementById('card-rf-chart');
+        if (cardEl) cardEl.classList.add('chart-active');
+      }
+      rfApplyDrill();
+      updateRepeatedFailureTable();
+      rfUpdateDrillBadge();
+    });
+    RF_STATE._clickBound = true;
+  }
+
+  const ch     = RF_STATE.chartInstance;
+  const groups = RF_STATE.groups;
+
+  if (!groups || groups.length === 0) { ch.clear(); return; }
+
+  // Aggregate by Debug review result for chart data
+  const drAgg  = {};  // dr → repeat group count
+  const snByDr = {};  // dr → Set of affected SNs
+  const pnByDr = {};  // dr → { pn: count }
+  const total  = groups.length;
+
+  groups.forEach(g => {
+    drAgg[g.dr] = (drAgg[g.dr] || 0) + 1;
+
+    if (!snByDr[g.dr]) snByDr[g.dr] = new Set();
+    snByDr[g.dr].add(g.sn);
+
+    if (!pnByDr[g.dr]) pnByDr[g.dr] = {};
+    if (g.defectPn && g.defectPn !== EMPTY_VAL) {
+      pnByDr[g.dr][g.defectPn] = (pnByDr[g.dr][g.defectPn] || 0) + 1;
+    }
+  });
+
+  // Sort descending by count, take top 15; reverse for horizontal bar (bottom-to-top)
+  const sorted   = Object.entries(drAgg).sort((a, b) => b[1] - a[1]).slice(0, 15).reverse();
+  const yLabels  = sorted.map(d => d[0]);
+  const xValues  = sorted.map(d => d[1]);
+
+  // Pre-compute tooltip data in reversed order
+  const ttData = sorted.map(([dr, cnt]) => {
+    const snCnt = snByDr[dr] ? snByDr[dr].size : 0;
+    const rate  = total > 0 ? (cnt / total * 100).toFixed(1) : '0.0';
+    const pnArr = Object.entries(pnByDr[dr] || {}).sort((a, b) => b[1] - a[1]);
+    const topPn = pnArr.length > 0 ? pnArr[0][0] : '-';
+    return { cnt, snCnt, rate, topPn };
+  });
+
+  ch.setOption({
+    ...getEchartBase(),
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: function(params) {
+        if (!params || !params[0]) return '';
+        const idx = params[0].dataIndex;
+        const d   = ttData[idx] || {};
+        const lbl = yLabels[idx] || '';
+        return `<b>${escapeHTML(lbl)}</b><br/>` +
+               `Repeat Count: <b style="color:#f59e0b">${d.cnt}</b><br/>` +
+               `Affected S/N Count: <b style="color:#3b82f6">${d.snCnt}</b><br/>` +
+               `Repeat Rate: <b style="color:#ef4444">${d.rate}%</b><br/>` +
+               `Top Defect P/N: <b style="color:#10b981">${escapeHTML(d.topPn)}</b>`;
+      }
+    },
+    grid: { left: 10, right: 50, top: 16, bottom: 16, containLabel: true },
+    xAxis: {
+      type: 'value',
+      name: 'Repeat Count',
+      nameTextStyle: { color: '#64748b', fontSize: 10 },
+      splitLine: { lineStyle: { color: '#2a344b' } },
+      axisLabel: { color: '#94a3b8' }
+    },
+    yAxis: {
+      type: 'category',
+      data: yLabels,
+      axisLabel: {
+        fontSize: 10, color: '#94a3b8', width: 160, overflow: 'truncate',
+        formatter: v => v && v.length > 22 ? v.substring(0, 22) + '…' : (v || '')
+      }
+    },
+    series: [{
+      type: 'bar',
+      data: xValues.map((v, i) => ({
+        value: v,
+        itemStyle: {
+          color: (RF_STATE.drillKey === yLabels[i] && RF_STATE.drillField === 'Debug review result')
+            ? '#f59e0b' : '#8b5cf6',
+          borderRadius: [0, 4, 4, 0]
+        }
+      })),
+      label: { show: true, position: 'right', color: '#e2e8f0', fontSize: 11 }
+    }]
+  }, true);
+}
+
+// ── Table Updater ──
+// Includes all required columns + editable Action Item / Status dropdown
+function updateRepeatedFailureTable() {
+  const tbody = document.getElementById('rfTableBody');
+  if (!tbody) return;
+
+  const groups     = RF_STATE.filtered;
+  const total      = groups.length;
+  const totalPages = Math.max(1, Math.ceil(total / RF_ROWS_PER_PAGE));
+
+  // Page boundary validation
+  if (RF_STATE.currentPage > totalPages) RF_STATE.currentPage = totalPages;
+  if (RF_STATE.currentPage < 1)         RF_STATE.currentPage = 1;
+
+  const start     = (RF_STATE.currentPage - 1) * RF_ROWS_PER_PAGE;
+  const pageSlice = groups.slice(start, start + RF_ROWS_PER_PAGE);
+
+  tbody.innerHTML = pageSlice.map(g => {
+    // Validate: use group key as stable statusMap key
+    const statusKey    = g.key || `${g.sn}||${g.ec}||${g.dr}`;
+    const savedStatus  = (RF_STATE.statusMap && RF_STATE.statusMap[statusKey])
+      ? RF_STATE.statusMap[statusKey] : 'Open';
+    const opts = RF_STATUS_OPTIONS
+      .map(o => `<option value="${escapeHTML(o)}"${o === savedStatus ? ' selected' : ''}>${escapeHTML(o)}</option>`)
+      .join('');
+
+    // Color-code days between repairs (≤ 14 days → danger)
+    const dayNum    = typeof g.daysBetween === 'number' ? g.daysBetween : parseFloat(g.daysBetween);
+    const dayColor  = (!isNaN(dayNum) && dayNum <= 14) ? 'color:var(--danger);font-weight:600' : '';
+    const dayDisplay = (g.daysBetween === '-' || g.daysBetween === undefined || g.daysBetween === null)
+      ? '-' : String(g.daysBetween);
+
+    return `<tr>
+      <td title="${escapeHTML(g.sn)}">${escapeHTML(g.sn)}</td>
+      <td title="${escapeHTML(g.ec)}">${escapeHTML(g.ec)}</td>
+      <td title="${escapeHTML(g.desc)}">${escapeHTML(g.desc)}</td>
+      <td title="${escapeHTML(g.defectPn)}">${escapeHTML(g.defectPn)}</td>
+      <td style="white-space:nowrap">${escapeHTML(g.firstFix)}</td>
+      <td style="white-space:nowrap">${escapeHTML(g.secondFix)}</td>
+      <td style="${dayColor}">${escapeHTML(dayDisplay)}</td>
+      <td title="${escapeHTML(g.dr)}">${escapeHTML(g.dr)}</td>
+      <td title="${escapeHTML(g.debugAction)}">${escapeHTML(g.debugAction)}</td>
+      <td style="color:var(--warning);font-weight:700;text-align:center">${g.repeatCount}</td>
+      <td>
+        <select class="rf-status-sel"
+          data-statuskey="${escapeHTML(statusKey)}"
+          style="background:var(--surface);color:var(--text);border:1px solid var(--border);
+                 border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer;width:100%">
+          ${opts}
+        </select>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Bind status change → persist in RF_STATE.statusMap
+  tbody.querySelectorAll('.rf-status-sel').forEach(sel => {
+    sel.addEventListener('change', function() {
+      if (!RF_STATE.statusMap) RF_STATE.statusMap = {};
+      RF_STATE.statusMap[this.dataset.statuskey] = this.value;
+    });
+  });
+
+  // Update pagination controls
+  const piEl   = document.getElementById('rfPageInfo');
+  const prvBtn = document.getElementById('rfBtnPrev');
+  const nxtBtn = document.getElementById('rfBtnNext');
+  if (piEl)   piEl.textContent  = `Showing ${total ? start + 1 : 0}–${Math.min(start + RF_ROWS_PER_PAGE, total)} of ${total}`;
+  if (prvBtn) prvBtn.disabled   = RF_STATE.currentPage === 1;
+  if (nxtBtn) nxtBtn.disabled   = RF_STATE.currentPage === totalPages;
+}
+
+// ── Drill Badge Helper ──
+function rfUpdateDrillBadge() {
+  const badge   = document.getElementById('rf-table-filter-badge');
+  const clearBt = document.getElementById('rf-clear-drill');
+  if (RF_STATE.drillKey) {
+    const lbl = `Filtered: ${RF_STATE.drillField} = "${RF_STATE.drillKey}"`;
+    if (badge)   { badge.textContent = lbl; badge.style.display = 'inline-block'; }
+    if (clearBt)   clearBt.style.display = 'inline-block';
+  } else {
+    if (badge)   badge.style.display   = 'none';
+    if (clearBt) clearBt.style.display = 'none';
+  }
+}
+
+// ── Hook into updateUI (non-destructive wrap) ──
+// Validation: all three RF functions fire on every filter/drill change
+;(function() {
+  const _origUpdateUI = updateUI;
+  updateUI = function() {
+    _origUpdateUI.call(this);
+    try {
+      updateRepeatedFailureKPIs();    // computes + sets KPIs + rfApplyDrill
+      updateRepeatedFailureChart();   // reads RF_STATE.groups
+      updateRepeatedFailureTable();   // reads RF_STATE.filtered
+    } catch (rfErr) {
+      console.warn('[RF Module Error]', rfErr);
+    }
+  };
+})();
+
+// ── RF DOM Events (pagination + drill clear + resize) ──
+document.addEventListener('DOMContentLoaded', function() {
+  // Pagination
+  const rfPrvBtn = document.getElementById('rfBtnPrev');
+  const rfNxtBtn = document.getElementById('rfBtnNext');
+  if (rfPrvBtn) rfPrvBtn.addEventListener('click', function() {
+    RF_STATE.currentPage = Math.max(1, RF_STATE.currentPage - 1);
+    updateRepeatedFailureTable();
+  });
+  if (rfNxtBtn) rfNxtBtn.addEventListener('click', function() {
+    RF_STATE.currentPage++;
+    updateRepeatedFailureTable();
+  });
+
+  // Clear drill-down filter
+  const rfClearBtn = document.getElementById('rf-clear-drill');
+  if (rfClearBtn) rfClearBtn.addEventListener('click', function() {
+    RF_STATE.drillKey   = null;
+    RF_STATE.drillField = null;
+    const cardEl = document.getElementById('card-rf-chart');
+    if (cardEl) cardEl.classList.remove('chart-active');
+    rfApplyDrill();
+    updateRepeatedFailureTable();
+    rfUpdateDrillBadge();
+  });
+
+  // Resize RF chart along with existing charts
+  window.addEventListener('resize', debounce(function() {
+    if (RF_STATE.chartInstance && !RF_STATE.chartInstance.isDisposed()) {
+      RF_STATE.chartInstance.resize();
+    }
+  }, 150));
+});
+// ── End Repeated Failure / Ineffective Repair Analysis Module ──
 
 // ── Harness Engineering Validation Suite ──
 // 執行: runValidation() 於 console，回傳通過/失敗報告
