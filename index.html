@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PWS 檢驗比對系統</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── Top Bar ── -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">P</div>
+    <div>
+      <div class="topbar-title">PWS 檢驗比對系統</div>
+      <div class="topbar-sub">PWS Inspection Mapping System</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-badge">離線版 v1.0</span>
+    <span id="clock">--:--:--</span>
+  </div>
+</header>
+
+<!-- ── Main ── -->
+<main>
+
+  <!-- Search Card -->
+  <div class="search-card">
+    <div class="card-header">
+      <div class="card-header-icon">&#128269;</div>
+      <div class="card-header-text">
+        <h2>PWS P/N 快速查詢</h2>
+        <p>輸入或掃描 PWS 料號，自動顯示對應 PDB 與 Test Jig</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="input-row">
+        <div class="input-wrap">
+          <span class="prefix-icon">&#128248;</span>
+          <input
+            id="pws-input"
+            type="text"
+            placeholder="輸入 PWS P/N，例如：PWS-602A-1R"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+          />
+        </div>
+        <button id="search-btn">
+          <span>&#128269;</span> 查&nbsp;詢
+        </button>
+        <button id="clear-btn" title="清除">&#10005;</button>
+      </div>
+      <div class="tips">
+        <span class="tip"><span class="dot"></span>支援掃描槍，掃完按 Enter 自動查詢</span>
+        <span class="tip"><span class="dot"></span>自動忽略大小寫與前後空白</span>
+        <span class="tip"><span class="dot"></span>支援模糊搜尋</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result Panel -->
+  <div id="result-panel"></div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-dot"></span>
+      <span class="stat-label">資料庫總筆數</span>
+      <span class="stat-val" id="total-count">—</span>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-item">
+      <span class="stat-dot" style="background:#43a047"></span>
+      <span class="stat-label">本次查詢次數</span>
+      <span class="stat-val" id="query-count">0</span>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-item">
+      <span class="stat-dot" style="background:#f57c00"></span>
+      <span class="stat-label">系統狀態</span>
+      <span class="stat-val" style="color:#1b5e20">&#10004; 離線可用</span>
+    </div>
+  </div>
+
+  <!-- History Card -->
+  <div class="history-card" id="history-card">
+    <div class="history-header">
+      <h3>&#128336; 查詢紀錄（最近 20 筆）</h3>
+      <button class="history-clear-btn" id="history-clear-btn">清除紀錄</button>
+    </div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+</main>
+
+<!-- ── Footer ── -->
+<footer>
+  PWS 檢驗比對系統 &nbsp;|&nbsp; 離線版 v1.0 &nbsp;|&nbsp; 純前端執行，無需伺服器
+</footer>
+
+<script src="data.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
