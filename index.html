@@ -1,107 +1,399 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PWS 檢驗比對系統</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PWS 檢驗比對系統</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --pri:#0d47a1;--acc:#1976d2;
+  --ok:#1b5e20;--ok-bg:#e8f5e9;--ok-bd:#43a047;
+  --err:#b71c1c;--err-bg:#ffebee;--err-bd:#e53935;
+  --bg:#f0f4f8;--sur:#fff;--bdr:#cfd8dc;
+  --txt:#1a237e;--mut:#546e7a;--r:12px;
+}
+body{font-family:'Segoe UI','Microsoft JhengHei',Arial,sans-serif;background:var(--bg);min-height:100vh;display:flex;flex-direction:column}
+
+/* topbar */
+.topbar{background:linear-gradient(135deg,#0d47a1,#1565c0 60%,#1976d2);color:#fff;padding:0 28px;height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(13,71,161,.3);position:sticky;top:0;z-index:100}
+.tl{display:flex;align-items:center;gap:14px}
+.logo{width:38px;height:38px;background:rgba(255,255,255,.18);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff}
+.ttl{font-size:17px;font-weight:700}
+.sub{font-size:11px;opacity:.75;margin-top:1px}
+.tr{display:flex;align-items:center;gap:16px}
+.badge{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:20px;padding:3px 12px;font-size:12px}
+#clock{font-size:13px;font-weight:600;opacity:.9;min-width:72px;text-align:right}
+
+/* layout */
+main{flex:1;max-width:860px;width:100%;margin:36px auto;padding:0 20px 60px}
+
+/* card */
+.card{background:var(--sur);border-radius:var(--r);box-shadow:0 4px 24px rgba(13,71,161,.13);border:1px solid var(--bdr);overflow:hidden;margin-bottom:20px}
+.card-hd{background:linear-gradient(90deg,#e8edf8,#f4f7fc);border-bottom:1px solid var(--bdr);padding:18px 28px;display:flex;align-items:center;gap:12px}
+.card-hd-icon{width:40px;height:40px;background:var(--pri);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+.card-hd h2{font-size:18px;color:var(--txt);font-weight:700}
+.card-hd p{font-size:12px;color:var(--mut);margin-top:2px}
+.card-bd{padding:24px 28px}
+
+/* input */
+.row{display:flex;gap:10px;align-items:stretch}
+.inp-wrap{flex:1;position:relative}
+.inp-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--acc);font-size:20px;pointer-events:none}
+#q{width:100%;height:62px;padding:0 18px 0 52px;font-size:22px;font-weight:600;letter-spacing:1px;border:2px solid var(--bdr);border-radius:10px;background:#f9fbff;color:var(--txt);outline:none;transition:border-color .2s,box-shadow .2s}
+#q::placeholder{font-size:14px;font-weight:400;color:#aab;letter-spacing:0}
+#q:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(25,118,210,.12);background:#fff}
+#btn-search{height:62px;padding:0 30px;background:linear-gradient(135deg,var(--pri),var(--acc));color:#fff;border:none;border-radius:10px;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;box-shadow:0 4px 14px rgba(13,71,161,.35);transition:filter .15s,transform .1s}
+#btn-search:hover{filter:brightness(1.08)}
+#btn-search:active{transform:scale(.97)}
+#btn-clear{height:62px;padding:0 18px;background:#eceff1;color:var(--mut);border:2px solid var(--bdr);border-radius:10px;font-size:22px;cursor:pointer;transition:background .15s}
+#btn-clear:hover{background:#dde}
+.tips{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap}
+.tip{font-size:11.5px;color:var(--mut);display:flex;align-items:center;gap:5px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--acc);display:inline-block}
+
+/* result */
+#result{display:none;margin-bottom:4px}
+.rs{display:flex;align-items:center;gap:10px;padding:13px 20px;border-radius:10px 10px 0 0;font-size:14px;font-weight:700}
+.rs.ok{background:#1565c0;color:#fff}
+.rs.err{background:var(--err);color:#fff}
+.rs-icon{font-size:18px}
+.rs-txt{flex:1}
+.rs-echo{font-size:11px;opacity:.75;margin-left:auto;font-weight:400}
+.rb{border:2px solid;border-top:none;border-radius:0 0 10px 10px;overflow:hidden}
+.rb.ok{border-color:var(--ok-bd)}
+.rb.err{border-color:var(--err-bd)}
+.grid{display:grid;grid-template-columns:1fr 1fr}
+.cell{padding:22px 28px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr);background:var(--sur)}
+.cell:nth-child(2n){border-right:none}
+.cell:nth-last-child(-n+2){border-bottom:none}
+.lbl{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mut);margin-bottom:8px}
+.val{font-size:28px;font-weight:800;color:var(--txt);line-height:1.1}
+.val.g{color:var(--ok)}
+.badge-ok{display:inline-flex;align-items:center;gap:6px;padding:6px 18px;border-radius:20px;background:var(--ok-bg);color:var(--ok);border:2px solid var(--ok-bd);font-size:15px;font-weight:800}
+.err-note{padding:24px 28px;background:var(--err-bg);color:var(--err)}
+.err-note strong{display:block;font-size:20px;margin-bottom:6px}
+
+/* fuzzy */
+.fz-title{font-size:12px;color:var(--mut);padding:10px 20px 8px;border-bottom:1px solid var(--bdr)}
+.fz-item{display:flex;align-items:center;gap:12px;padding:11px 20px;cursor:pointer;border-bottom:1px solid #f0f0f0;transition:background .12s}
+.fz-item:last-child{border-bottom:none}
+.fz-item:hover{background:#e8f0fe}
+.fz-pws{font-size:15px;font-weight:700;color:var(--pri);flex:1}
+.fz-meta{font-size:12px;color:var(--mut)}
+.fz-arr{color:var(--acc);font-size:18px}
+
+/* stats */
+.stats{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:14px 24px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:20px}
+.si{display:flex;align-items:center;gap:8px}
+.sdot{width:8px;height:8px;border-radius:50%;background:var(--acc)}
+.slbl{font-size:12px;color:var(--mut)}
+.sval{font-size:15px;font-weight:800;color:var(--txt)}
+.div{width:1px;height:20px;background:var(--bdr)}
+
+/* history */
+#hist-card{display:none}
+.hist-hd{background:#f4f7fc;padding:12px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.hist-hd h3{font-size:13px;font-weight:700;color:var(--txt)}
+#hist-clr{font-size:11px;color:var(--mut);background:none;border:none;cursor:pointer}
+#hist-clr:hover{color:var(--err)}
+#hist-list{max-height:180px;overflow-y:auto}
+.hr{display:flex;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid #f5f5f5;cursor:pointer;font-size:13px;transition:background .12s}
+.hr:last-child{border-bottom:none}
+.hr:hover{background:#e8f0fe}
+.hr-pws{font-weight:700;color:var(--pri);flex:1}
+.hr-time{color:var(--mut);font-size:11px}
+.hr-tag{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.hr-tag.ok{background:var(--ok-bg);color:var(--ok)}
+.hr-tag.err{background:var(--err-bg);color:var(--err)}
+
+footer{text-align:center;padding:18px;font-size:11px;color:var(--mut);border-top:1px solid var(--bdr);background:var(--sur)}
+
+@keyframes fi{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.ani{animation:fi .22s ease both}
+
+@media(max-width:600px){
+  .topbar{padding:0 14px;height:56px}.ttl{font-size:14px}.badge{display:none}
+  main{margin:16px auto;padding:0 12px 40px}
+  .card-bd{padding:16px}.card-hd{padding:14px 16px}
+  .row{flex-direction:column}
+  #btn-search{height:52px;width:100%;justify-content:center;font-size:16px}
+  #btn-clear{height:52px}
+  #q{height:56px;font-size:18px}
+  .grid{grid-template-columns:1fr}.cell{border-right:none}
+  .cell:nth-last-child(-n+2){border-bottom:1px solid var(--bdr)}.cell:last-child{border-bottom:none}
+  .val{font-size:22px}.stats{gap:14px}
+}
+</style>
 </head>
 <body>
 
-<!-- ── Top Bar ── -->
 <header class="topbar">
-  <div class="topbar-left">
-    <div class="topbar-logo">P</div>
+  <div class="tl">
+    <div class="logo">P</div>
     <div>
-      <div class="topbar-title">PWS 檢驗比對系統</div>
-      <div class="topbar-sub">PWS Inspection Mapping System</div>
+      <div class="ttl">PWS 檢驗比對系統</div>
+      <div class="sub">PWS Inspection Mapping System</div>
     </div>
   </div>
-  <div class="topbar-right">
-    <span class="topbar-badge">離線版 v1.0</span>
+  <div class="tr">
+    <span class="badge">離線版 v1.1</span>
     <span id="clock">--:--:--</span>
   </div>
 </header>
 
-<!-- ── Main ── -->
 <main>
-
-  <!-- Search Card -->
-  <div class="search-card">
-    <div class="card-header">
-      <div class="card-header-icon">&#128269;</div>
-      <div class="card-header-text">
+  <!-- 查詢卡片 -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-hd-icon">&#128269;</div>
+      <div>
         <h2>PWS P/N 快速查詢</h2>
         <p>輸入或掃描 PWS 料號，自動顯示對應 PDB 與 Test Jig</p>
       </div>
     </div>
-    <div class="card-body">
-      <div class="input-row">
-        <div class="input-wrap">
-          <span class="prefix-icon">&#128248;</span>
-          <input
-            id="pws-input"
-            type="text"
-            placeholder="輸入 PWS P/N，例如：PWS-602A-1R"
-            autocomplete="off"
-            autocorrect="off"
-            spellcheck="false"
-          />
+    <div class="card-bd">
+      <div class="row">
+        <div class="inp-wrap">
+          <span class="inp-icon">&#128248;</span>
+          <input id="q" type="text" placeholder="輸入 PWS P/N，例如：PWS-602A-1R"
+                 autocomplete="off" autocorrect="off" spellcheck="false"/>
         </div>
-        <button id="search-btn">
-          <span>&#128269;</span> 查&nbsp;詢
-        </button>
-        <button id="clear-btn" title="清除">&#10005;</button>
+        <button id="btn-search">&#128269; 查&nbsp;詢</button>
+        <button id="btn-clear" title="清除">&#10005;</button>
       </div>
       <div class="tips">
-        <span class="tip"><span class="dot"></span>支援掃描槍，掃完按 Enter 自動查詢</span>
-        <span class="tip"><span class="dot"></span>自動忽略大小寫與前後空白</span>
+        <span class="tip"><span class="dot"></span>掃描槍 Enter 自動查詢</span>
+        <span class="tip"><span class="dot"></span>忽略大小寫與空白</span>
         <span class="tip"><span class="dot"></span>支援模糊搜尋</span>
       </div>
     </div>
   </div>
 
-  <!-- Result Panel -->
-  <div id="result-panel"></div>
+  <!-- 結果 -->
+  <div id="result"></div>
 
-  <!-- Stats Bar -->
-  <div class="stats-bar">
-    <div class="stat-item">
-      <span class="stat-dot"></span>
-      <span class="stat-label">資料庫總筆數</span>
-      <span class="stat-val" id="total-count">—</span>
-    </div>
-    <div class="divider"></div>
-    <div class="stat-item">
-      <span class="stat-dot" style="background:#43a047"></span>
-      <span class="stat-label">本次查詢次數</span>
-      <span class="stat-val" id="query-count">0</span>
-    </div>
-    <div class="divider"></div>
-    <div class="stat-item">
-      <span class="stat-dot" style="background:#f57c00"></span>
-      <span class="stat-label">系統狀態</span>
-      <span class="stat-val" style="color:#1b5e20">&#10004; 離線可用</span>
-    </div>
+  <!-- 統計 -->
+  <div class="stats">
+    <div class="si"><span class="sdot"></span><span class="slbl">資料庫總筆數</span><span class="sval" id="s-total">-</span></div>
+    <div class="div"></div>
+    <div class="si"><span class="sdot" style="background:#43a047"></span><span class="slbl">本次查詢次數</span><span class="sval" id="s-count">0</span></div>
+    <div class="div"></div>
+    <div class="si"><span class="sdot" style="background:#f57c00"></span><span class="slbl">系統狀態</span><span class="sval" style="color:#1b5e20">&#10004; 離線可用</span></div>
   </div>
 
-  <!-- History Card -->
-  <div class="history-card" id="history-card">
-    <div class="history-header">
+  <!-- 查詢紀錄 -->
+  <div class="card" id="hist-card">
+    <div class="hist-hd">
       <h3>&#128336; 查詢紀錄（最近 20 筆）</h3>
-      <button class="history-clear-btn" id="history-clear-btn">清除紀錄</button>
+      <button id="hist-clr">清除紀錄</button>
     </div>
-    <div class="history-list" id="history-list"></div>
+    <div id="hist-list"></div>
   </div>
-
 </main>
 
-<!-- ── Footer ── -->
-<footer>
-  PWS 檢驗比對系統 &nbsp;|&nbsp; 離線版 v1.0 &nbsp;|&nbsp; 純前端執行，無需伺服器
-</footer>
+<footer>PWS 檢驗比對系統 &nbsp;|&nbsp; 離線版 v1.1 &nbsp;|&nbsp; 純前端，無需伺服器</footer>
 
-<script src="data.js"></script>
-<script src="script.js"></script>
+<script>
+/* ===== 資料 ===== */
+var DB = [
+  {"pws":"PWS-602A-1R",  "pdb":"PDB-PT813", "jig":"JIG-A01"},
+  {"pws":"PWS-703A-1R",  "pdb":"PDB-PT900", "jig":"JIG-A02"},
+  {"pws":"PWS-804A-1R",  "pdb":"PDB-PT921", "jig":"JIG-A03"},
+  {"pws":"PWS-602B-1R",  "pdb":"PDB-PT814", "jig":"JIG-B01"},
+  {"pws":"PWS-703B-1R",  "pdb":"PDB-PT901", "jig":"JIG-B02"},
+  {"pws":"PWS-804B-1R",  "pdb":"PDB-PT922", "jig":"JIG-B03"},
+  {"pws":"PWS-602A-2R",  "pdb":"PDB-PT815", "jig":"JIG-C01"},
+  {"pws":"PWS-703A-2R",  "pdb":"PDB-PT902", "jig":"JIG-C02"},
+  {"pws":"PWS-804A-2R",  "pdb":"PDB-PT923", "jig":"JIG-C03"},
+  {"pws":"PWS-1000A-1R", "pdb":"PDB-PT950", "jig":"JIG-D01"},
+  {"pws":"PWS-1200A-1R", "pdb":"PDB-PT960", "jig":"JIG-D02"},
+  {"pws":"PWS-1500A-1R", "pdb":"PDB-PT970", "jig":"JIG-D03"},
+  {"pws":"PWS-502A-1R",  "pdb":"PDB-PT800", "jig":"JIG-E01"},
+  {"pws":"PWS-402A-1R",  "pdb":"PDB-PT780", "jig":"JIG-E02"},
+  {"pws":"PWS-302A-1R",  "pdb":"PDB-PT760", "jig":"JIG-E03"}
+];
+
+/* ===== 工具 ===== */
+function norm(s){ return s.trim().toUpperCase().replace(/\s+/g,''); }
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ===== 狀態 ===== */
+var qCount = parseInt(localStorage.getItem('pws_qc')||'0',10);
+var history = [];
+try{ history = JSON.parse(localStorage.getItem('pws_h')||'[]'); }catch(e){}
+
+/* ===== DOM ===== */
+var qEl       = document.getElementById('q');
+var resultEl  = document.getElementById('result');
+var sTotal    = document.getElementById('s-total');
+var sCount    = document.getElementById('s-count');
+var histCard  = document.getElementById('hist-card');
+var histList  = document.getElementById('hist-list');
+
+sTotal.textContent = DB.length;
+sCount.textContent = qCount;
+renderHistory();
+
+/* ===== 時鐘 ===== */
+function tick(){
+  var n=new Date();
+  document.getElementById('clock').textContent =
+    ('0'+n.getHours()).slice(-2)+':'+('0'+n.getMinutes()).slice(-2)+':'+('0'+n.getSeconds()).slice(-2);
+}
+tick(); setInterval(tick,1000);
+
+/* ===== 查詢 ===== */
+function doSearch(){
+  var raw = qEl.value;
+  var q   = norm(raw);
+  if(!q) return;
+
+  qCount++;
+  localStorage.setItem('pws_qc', qCount);
+  sCount.textContent = qCount;
+
+  /* 精確比對 */
+  var exact = null;
+  for(var i=0;i<DB.length;i++){
+    if(norm(DB[i].pws)===q){ exact=DB[i]; break; }
+  }
+  if(exact){ showOK(exact, q); addHist(raw.trim(),true); return; }
+
+  /* 模糊比對 */
+  var fuzzy=[];
+  for(var i=0;i<DB.length;i++){
+    if(norm(DB[i].pws).indexOf(q)!==-1 || q.indexOf(norm(DB[i].pws))!==-1)
+      fuzzy.push(DB[i]);
+  }
+  if(fuzzy.length===1){ showOK(fuzzy[0],q); addHist(raw.trim(),true); return; }
+  if(fuzzy.length>1){  showFuzzy(fuzzy,q);  addHist(raw.trim(),false); return; }
+
+  showErr(q); addHist(raw.trim(),false);
+}
+
+/* ===== 顯示：成功 ===== */
+function showOK(r,q){
+  resultEl.style.display='block';
+  resultEl.innerHTML=
+    '<div class="rs ok ani">'+
+      '<span class="rs-icon">&#10004;</span>'+
+      '<span class="rs-txt">查詢成功 — 資料已找到</span>'+
+      '<span class="rs-echo">查詢：'+esc(q)+'</span>'+
+    '</div>'+
+    '<div class="rb ok ani">'+
+      '<div class="grid">'+
+        '<div class="cell"><div class="lbl">PWS P/N</div><div class="val">'+esc(r.pws)+'</div></div>'+
+        '<div class="cell"><div class="lbl">Status</div><div class="val"><span class="badge-ok">&#10004; OK</span></div></div>'+
+        '<div class="cell"><div class="lbl">PDB</div><div class="val g">'+esc(r.pdb)+'</div></div>'+
+        '<div class="cell"><div class="lbl">Test Jig</div><div class="val g">'+esc(r.jig)+'</div></div>'+
+      '</div>'+
+    '</div>';
+}
+
+/* ===== 顯示：查無 ===== */
+function showErr(q){
+  resultEl.style.display='block';
+  resultEl.innerHTML=
+    '<div class="rs err ani">'+
+      '<span class="rs-icon">&#10008;</span>'+
+      '<span class="rs-txt">查無資料</span>'+
+      '<span class="rs-echo">查詢：'+esc(q)+'</span>'+
+    '</div>'+
+    '<div class="rb err ani">'+
+      '<div class="err-note"><strong>No Mapping Found</strong>'+
+      '找不到「'+esc(q)+'」的對應資料，請確認料號是否正確。</div>'+
+    '</div>';
+}
+
+/* ===== 顯示：模糊清單 ===== */
+function showFuzzy(list,q){
+  var items='';
+  for(var i=0;i<list.length;i++){
+    items+='<div class="fz-item" data-idx="'+i+'">'+
+      '<span class="fz-pws">'+esc(list[i].pws)+'</span>'+
+      '<span class="fz-meta">PDB: '+esc(list[i].pdb)+' ／ JIG: '+esc(list[i].jig)+'</span>'+
+      '<span class="fz-arr">&#8250;</span></div>';
+  }
+  resultEl.style.display='block';
+  resultEl.innerHTML=
+    '<div class="rs ok ani">'+
+      '<span class="rs-icon">&#9889;</span>'+
+      '<span class="rs-txt">找到 '+list.length+' 筆相近結果，請點選</span>'+
+      '<span class="rs-echo">查詢：'+esc(q)+'</span>'+
+    '</div>'+
+    '<div class="rb ok ani">'+
+      '<div class="fz-title">模糊比對結果（點擊選擇）</div>'+items+
+    '</div>';
+
+  var els=resultEl.querySelectorAll('.fz-item');
+  for(var i=0;i<els.length;i++){
+    (function(rec){
+      els[i].addEventListener('click',function(){
+        qEl.value=rec.pws;
+        showOK(rec,rec.pws);
+      });
+    })(list[parseInt(els[i].dataset.idx)]);
+  }
+}
+
+/* ===== 歷史紀錄 ===== */
+function addHist(pws,ok){
+  var n=new Date();
+  var t=('0'+n.getHours()).slice(-2)+':'+('0'+n.getMinutes()).slice(-2)+':'+('0'+n.getSeconds()).slice(-2);
+  history.unshift({pws:pws,ok:ok,t:t});
+  if(history.length>20) history.pop();
+  try{ localStorage.setItem('pws_h',JSON.stringify(history)); }catch(e){}
+  renderHistory();
+}
+
+function renderHistory(){
+  if(!history.length){ histCard.style.display='none'; return; }
+  histCard.style.display='block';
+  var html='';
+  for(var i=0;i<history.length;i++){
+    var h=history[i];
+    html+='<div class="hr" data-pws="'+esc(h.pws)+'">'+
+      '<span class="hr-pws">'+esc(h.pws)+'</span>'+
+      '<span class="hr-tag '+(h.ok?'ok':'err')+'">'+(h.ok?'OK':'MISS')+'</span>'+
+      '<span class="hr-time">'+h.t+'</span></div>';
+  }
+  histList.innerHTML=html;
+  var rows=histList.querySelectorAll('.hr');
+  for(var i=0;i<rows.length;i++){
+    (function(el){
+      el.addEventListener('click',function(){
+        qEl.value=el.dataset.pws;
+        doSearch();
+      });
+    })(rows[i]);
+  }
+}
+
+/* ===== 事件綁定 ===== */
+document.getElementById('btn-search').addEventListener('click', doSearch);
+
+document.getElementById('btn-clear').addEventListener('click', function(){
+  qEl.value='';
+  resultEl.style.display='none';
+  resultEl.innerHTML='';
+  qEl.focus();
+});
+
+qEl.addEventListener('keydown', function(e){
+  if(e.key==='Enter'){ e.preventDefault(); doSearch(); }
+});
+
+document.getElementById('hist-clr').addEventListener('click', function(){
+  history=[];
+  try{ localStorage.removeItem('pws_h'); }catch(e){}
+  renderHistory();
+});
+
+qEl.focus();
+</script>
 </body>
 </html>
