@@ -9,6 +9,7 @@
 :root{
   --pri:#0d47a1;--acc:#1976d2;
   --ok:#1b5e20;--ok-bg:#e8f5e9;--ok-bd:#43a047;
+  --warn:#e65100;--warn-bg:#fff3e0;--warn-bd:#fb8c00;
   --err:#b71c1c;--err-bg:#ffebee;--err-bd:#e53935;
   --bg:#f0f4f8;--sur:#fff;--bdr:#cfd8dc;
   --txt:#1a237e;--mut:#546e7a;--r:12px;
@@ -56,12 +57,14 @@ main{flex:1;max-width:860px;width:100%;margin:36px auto;padding:0 20px 60px}
 #result{display:none;margin-bottom:4px}
 .rs{display:flex;align-items:center;gap:10px;padding:13px 20px;border-radius:10px 10px 0 0;font-size:14px;font-weight:700}
 .rs.ok{background:#1565c0;color:#fff}
+.rs.warn{background:#e65100;color:#fff}
 .rs.err{background:var(--err);color:#fff}
 .rs-icon{font-size:18px}
 .rs-txt{flex:1}
 .rs-echo{font-size:11px;opacity:.75;margin-left:auto;font-weight:400}
 .rb{border:2px solid;border-top:none;border-radius:0 0 10px 10px;overflow:hidden}
 .rb.ok{border-color:var(--ok-bd)}
+.rb.warn{border-color:var(--warn-bd)}
 .rb.err{border-color:var(--err-bd)}
 .grid{display:grid;grid-template-columns:1fr 1fr}
 .cell{padding:22px 28px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr);background:var(--sur)}
@@ -70,6 +73,7 @@ main{flex:1;max-width:860px;width:100%;margin:36px auto;padding:0 20px 60px}
 .lbl{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mut);margin-bottom:8px}
 .val{font-size:28px;font-weight:800;color:var(--txt);line-height:1.1}
 .val.g{color:var(--ok)}
+.val.w{color:var(--warn)}
 .badge-ok{display:inline-flex;align-items:center;gap:6px;padding:6px 18px;border-radius:20px;background:var(--ok-bg);color:var(--ok);border:2px solid var(--ok-bd);font-size:15px;font-weight:800}
 .err-note{padding:24px 28px;background:var(--err-bg);color:var(--err)}
 .err-note strong{display:block;font-size:20px;margin-bottom:6px}
@@ -195,23 +199,80 @@ footer{text-align:center;padding:18px;font-size:11px;color:var(--mut);border-top
 <footer>PWS 檢驗比對系統 &nbsp;|&nbsp; 離線版 v1.1 &nbsp;|&nbsp; 純前端，無需伺服器</footer>
 
 <script>
-/* ===== 資料 ===== */
+/* ===== 資料（來源：PWS List.xlsm，共 72 筆）===== */
 var DB = [
-  {"pws":"PWS-602A-1R",  "pdb":"PDB-PT813", "jig":"JIG-A01"},
-  {"pws":"PWS-703A-1R",  "pdb":"PDB-PT900", "jig":"JIG-A02"},
-  {"pws":"PWS-804A-1R",  "pdb":"PDB-PT921", "jig":"JIG-A03"},
-  {"pws":"PWS-602B-1R",  "pdb":"PDB-PT814", "jig":"JIG-B01"},
-  {"pws":"PWS-703B-1R",  "pdb":"PDB-PT901", "jig":"JIG-B02"},
-  {"pws":"PWS-804B-1R",  "pdb":"PDB-PT922", "jig":"JIG-B03"},
-  {"pws":"PWS-602A-2R",  "pdb":"PDB-PT815", "jig":"JIG-C01"},
-  {"pws":"PWS-703A-2R",  "pdb":"PDB-PT902", "jig":"JIG-C02"},
-  {"pws":"PWS-804A-2R",  "pdb":"PDB-PT923", "jig":"JIG-C03"},
-  {"pws":"PWS-1000A-1R", "pdb":"PDB-PT950", "jig":"JIG-D01"},
-  {"pws":"PWS-1200A-1R", "pdb":"PDB-PT960", "jig":"JIG-D02"},
-  {"pws":"PWS-1500A-1R", "pdb":"PDB-PT970", "jig":"JIG-D03"},
-  {"pws":"PWS-502A-1R",  "pdb":"PDB-PT800", "jig":"JIG-E01"},
-  {"pws":"PWS-402A-1R",  "pdb":"PDB-PT780", "jig":"JIG-E02"},
-  {"pws":"PWS-302A-1R",  "pdb":"PDB-PT760", "jig":"JIG-E03"}
+  {"pws":"PWS-1K27A-1R",      "pdb":"PDB-PT819",         "jig":"8824"},
+  {"pws":"PWS-406P-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-407P-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-504P-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-504P-1R2",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-601A-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-602A-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-606P-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-704P-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-706P-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-804P-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-860P-1R2",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-861A-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-862A-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K23A-1R",      "pdb":"PDB-PT747",         "jig":"4648"},
+  {"pws":"PWS-1K23A-SQ",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K28P-SQ",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K04A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K03A-1R",      "pdb":"PDB-PT825",         "jig":"S8824"},
+  {"pws":"PWS-1K11P-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-501P-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-609P-1R2",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-741P-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-802A-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-920P-1R2",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-920P-SQ",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-982P-1R",       "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K02A-1R",      "pdb":"PDB-PT226S",        "jig":"8824"},
+  {"pws":"PWS-1K04A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K22A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K22F-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K24A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K30D-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K61A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K62A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K62A-1R-MB007","pdb":"",                   "jig":""},
+  {"pws":"PWS-1K63A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K66P-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-1K68A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K05A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K07A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K07A-27",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K07A-NF",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K08A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K08A-1R2",     "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K08A-27R",     "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K09A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K63A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K70A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K71A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K71F-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K21A-2R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K21A-BR",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K21G-2R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-2K22A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-3K01A-BR",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-3K01G-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-3K02G-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-3K02G-2R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-3K04A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-3K06G-2R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-3K21A-1R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-3K21A-1R2",     "pdb":"",                   "jig":""},
+  {"pws":"PWS-3K21A-27",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-3K21A-2A",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-6K00G-2R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-6K01G-2R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-6K61G-2R",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-DF004-2F",      "pdb":"Visual Inspection",  "jig":"Visual Inspection"},
+  {"pws":"PWS-DF005-2F",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-DF006-2F",      "pdb":"",                   "jig":""},
+  {"pws":"PWS-DF009-2F",      "pdb":"",                   "jig":""}
 ];
 
 /* ===== 工具 ===== */
@@ -261,16 +322,22 @@ function doSearch(){
   for(var i=0;i<DB.length;i++){
     if(norm(DB[i].pws)===q){ exact=DB[i]; break; }
   }
-  if(exact){ showOK(exact, q); addHist(raw.trim(),true); return; }
+  if(exact){
+    if(exact.pdb){ showOK(exact,q); } else { showWarn(exact,q); }
+    addHist(raw.trim(), !!exact.pdb); return;
+  }
 
   /* 模糊比對 */
   var fuzzy=[];
   for(var i=0;i<DB.length;i++){
-    if(norm(DB[i].pws).indexOf(q)!==-1 || q.indexOf(norm(DB[i].pws))!==-1)
-      fuzzy.push(DB[i]);
+    var np=norm(DB[i].pws);
+    if(np.indexOf(q)!==-1 || q.indexOf(np)!==-1) fuzzy.push(DB[i]);
   }
-  if(fuzzy.length===1){ showOK(fuzzy[0],q); addHist(raw.trim(),true); return; }
-  if(fuzzy.length>1){  showFuzzy(fuzzy,q);  addHist(raw.trim(),false); return; }
+  if(fuzzy.length===1){
+    if(fuzzy[0].pdb){ showOK(fuzzy[0],q); } else { showWarn(fuzzy[0],q); }
+    addHist(raw.trim(), !!fuzzy[0].pdb); return;
+  }
+  if(fuzzy.length>1){ showFuzzy(fuzzy,q); addHist(raw.trim(),false); return; }
 
   showErr(q); addHist(raw.trim(),false);
 }
@@ -290,6 +357,25 @@ function showOK(r,q){
         '<div class="cell"><div class="lbl">Status</div><div class="val"><span class="badge-ok">&#10004; OK</span></div></div>'+
         '<div class="cell"><div class="lbl">PDB</div><div class="val g">'+esc(r.pdb)+'</div></div>'+
         '<div class="cell"><div class="lbl">Test Jig</div><div class="val g">'+esc(r.jig)+'</div></div>'+
+      '</div>'+
+    '</div>';
+}
+
+/* ===== 顯示：存在但未登錄 ===== */
+function showWarn(r,q){
+  resultEl.style.display='block';
+  resultEl.innerHTML=
+    '<div class="rs warn ani">'+
+      '<span class="rs-icon">&#9888;</span>'+
+      '<span class="rs-txt">料號存在，但 PDB & Test Jig 尚未登錄</span>'+
+      '<span class="rs-echo">查詢：'+esc(q)+'</span>'+
+    '</div>'+
+    '<div class="rb warn ani">'+
+      '<div class="grid">'+
+        '<div class="cell"><div class="lbl">PWS P/N</div><div class="val">'+esc(r.pws)+'</div></div>'+
+        '<div class="cell"><div class="lbl">Status</div><div class="val"><span style="display:inline-flex;align-items:center;gap:6px;padding:6px 18px;border-radius:20px;background:var(--warn-bg);color:var(--warn);border:2px solid var(--warn-bd);font-size:15px;font-weight:800">&#9888; Pending</span></div></div>'+
+        '<div class="cell"><div class="lbl">PDB</div><div class="val w">未登錄</div></div>'+
+        '<div class="cell"><div class="lbl">Test Jig</div><div class="val w">未登錄</div></div>'+
       '</div>'+
     '</div>';
 }
